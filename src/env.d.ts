@@ -4,7 +4,8 @@
 type CloudflareEnv = {
   DB: import('@cloudflare/workers-types').D1Database;
   SESSION: import('@cloudflare/workers-types').KVNamespace;
-  PHOTOS: import('@cloudflare/workers-types').R2Bucket;
+  // R2 active ulterieurement (upload photos). Optionnel tant que non active.
+  PHOTOS?: import('@cloudflare/workers-types').R2Bucket;
   ENVIRONMENT: string;
 };
 

@@ -15,19 +15,23 @@ binding = "ASSETS"
 [[d1_databases]]
 binding = "DB"
 database_name = "chatel-locations"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "3400c9eb-5cd5-45f6-bf0a-62c979cf3548"
 migrations_dir = "migrations"
 
 # Sessions / cache (auth back-office, RBAC). Le binding "SESSION" est aussi
 # utilise par l'adaptateur Astro/Cloudflare pour les sessions integrees.
 [[kv_namespaces]]
 binding = "SESSION"
-id = "0000000000000000000000000000session"
+id = "26edf84145e74bf5a4245cb7f5b27024"
 
 # Stockage des photos des logements.
-[[r2_buckets]]
-binding = "PHOTOS"
-bucket_name = "chatel-photos"
+# DESACTIVE temporairement : R2 doit d'abord etre active dans le dashboard Cloudflare.
+# A reactiver pour l'upload des vraies photos (phase back-office) :
+#   1) activer R2 dans le dashboard, 2) `npx wrangler r2 bucket create chatel-photos`,
+#   3) decommenter ce bloc, 4) redeployer.
+# [[r2_buckets]]
+# binding = "PHOTOS"
+# bucket_name = "chatel-photos"
 
 # Tache planifiee : synchronisation periodique des flux iCal (Airbnb/Booking) — anti double-booking.
 # Toutes les 3 heures.
