@@ -1,0 +1,26 @@
+{
+  "name": "chatel-locations",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Plateforme de reservation directe - locations familiales a Chatel (Portes du Soleil)",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "db:seed:local": "wrangler d1 execute DB --local --file=./seed/seed.sql",
+    "db:reset:local": "npm run db:migrate:local && npm run db:seed:local",
+    "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
+    "deploy": "astro build && wrangler deploy"
+  },
+  "dependencies": {
+    "astro": "^5.7.0"
+  },
+  "devDependencies": {
+    "@astrojs/cloudflare": "^12.2.0",
+    "wrangler": "^4.10.0"
+  }
+}

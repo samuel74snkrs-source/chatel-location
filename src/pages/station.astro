@@ -1,0 +1,47 @@
+---
+import Base from '../layouts/Base.astro';
+import SearchBar from '../components/SearchBar.astro';
+
+const description = 'Louer à Châtel au pied des pistes : station des Portes du Soleil (650 km de pistes, 12 stations franco-suisses), à 500 m du télésiège de la Barbossine. Guide pratique pour vos vacances.';
+---
+<Base titre="Châtel & les Portes du Soleil" description={description}>
+  <section class="section">
+    <div class="conteneur" style="max-width:820px">
+      <h1>Louer un appartement à Châtel, au cœur des Portes du Soleil</h1>
+      <p style="font-size:1.1rem;color:var(--texte-doux)">
+        Châtel (Haute-Savoie, 1 200 m) est l’une des portes d’entrée du domaine des
+        <strong>Portes du Soleil</strong> : 12 stations franco-suisses reliées et environ
+        600 km de pistes. Le chalet <strong>Pensée des Alpes</strong> se situe à seulement
+        500 m du télésiège de la Barbossine (secteur Petit-Châtel), idéal pour un séjour
+        au pied des pistes en réservation directe.
+      </p>
+
+      <h2>L’hiver : ski au pied des pistes</h2>
+      <p>
+        Depuis la Barbossine, rejoignez le secteur de Super-Châtel puis l’ensemble du
+        domaine des Portes du Soleil, côté français comme côté suisse (Morgins, Champéry).
+        Forfait piéton, navette gratuite au pied du chalet (arrêt de bus à 20 m), casier à
+        skis privatif : tout est pensé pour profiter de la neige sans contrainte.
+      </p>
+
+      <h2>L’été : randonnée, VTT et lac</h2>
+      <p>
+        L’été, Châtel devient un terrain de jeu pour la <strong>randonnée</strong> et le
+        <strong>VTT</strong> (Bike Park des Portes du Soleil). Sentiers accessibles à 200 m
+        du chalet, lac de Vonnes, activités en famille. Local à vélos disponible.
+      </p>
+
+      <h2>Le chalet Pensée des Alpes en bref</h2>
+      <ul>
+        <li>1735 chemin du Petit-Châtel, 74390 Châtel — altitude ~1 250 m.</li>
+        <li>À 500 m du télésiège de la Barbossine, 1,5 km du centre du village.</li>
+        <li>Appartements spacieux de 7 à 10 personnes, cheminée, balcon, vue montagne.</li>
+        <li>Parking au garage, casier à skis, WiFi.</li>
+      </ul>
+
+      <div style="margin-top:2rem">
+        <SearchBar />
+      </div>
+    </div>
+  </section>
+</Base>

@@ -1,0 +1,38 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "chatel-locations"
+main = "./dist/_worker.js/index.js"
+compatibility_date = "2025-06-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Sert les fichiers statiques generes par Astro (build).
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+
+# Base de donnees relationnelle (entites proprietaires/logements/reservations...).
+# En local, Miniflare cree une base SQLite dans .wrangler/state (database_id ignore en local).
+# En production : remplacer database_id par l'ID reel obtenu via `wrangler d1 create chatel-locations`.
+[[d1_databases]]
+binding = "DB"
+database_name = "chatel-locations"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+# Sessions / cache (auth back-office, RBAC). Le binding "SESSION" est aussi
+# utilise par l'adaptateur Astro/Cloudflare pour les sessions integrees.
+[[kv_namespaces]]
+binding = "SESSION"
+id = "0000000000000000000000000000session"
+
+# Stockage des photos des logements.
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "chatel-photos"
+
+# Tache planifiee : synchronisation periodique des flux iCal (Airbnb/Booking) — anti double-booking.
+# Toutes les 3 heures.
+[triggers]
+crons = ["0 */3 * * *"]
+
+[vars]
+ENVIRONMENT = "development"

@@ -1,0 +1,123 @@
+---
+import Base from '../layouts/Base.astro';
+import { getLogementsPublies, getLogementBySlug } from '../lib/db';
+import { useTranslations, type Lang } from '../i18n/ui';
+
+const lang = (Astro.currentLocale as Lang) ?? 'fr';
+const t = useTranslations(lang);
+const DB = Astro.locals.runtime.env.DB;
+
+const logements = await getLogementsPublies(DB);
+
+let confirmation: string | null = null;
+let erreur: string | null = null;
+
+// Traitement de la demande de reservation (enregistrée en statut "en_attente").
+// Le paiement de l'acompte (Stripe) et la confirmation seront ajoutés en phase ultérieure.
+if (Astro.request.method === 'POST') {
+  try {
+    const form = await Astro.request.formData();
+    const nom = String(form.get('nom') ?? '').trim();
+    const email = String(form.get('email') ?? '').trim();
+    const telephone = String(form.get('telephone') ?? '').trim();
+    const logementSlug = String(form.get('logement') ?? '').trim();
+    const arrivee = String(form.get('arrivee') ?? '').trim();
+    const depart = String(form.get('depart') ?? '').trim();
+    const personnes = Number(form.get('personnes') ?? '1') || 1;
+    const message = String(form.get('message') ?? '').trim();
+
+    if (!nom || !email || !logementSlug || !arrivee || !depart) {
+      erreur = 'Merci de renseigner au minimum votre nom, e-mail, le logement et les dates.';
+    } else if (!(arrivee < depart)) {
+      erreur = 'La date de départ doit être postérieure à la date d’arrivée.';
+    } else {
+      const logement = await getLogementBySlug(DB, logementSlug);
+      if (!logement) {
+        erreur = 'Logement introuvable.';
+      } else {
+        const nbNuits = Math.round(
+          (new Date(depart).getTime() - new Date(arrivee).getTime()) / 86400000
+        );
+        // Reference lisible : CHA-AAAA-NNNN
+        const annee = new Date().getFullYear();
+        const { c } = (await DB.prepare('SELECT COUNT(*) AS c FROM reservations').first<{ c: number }>()) ?? { c: 0 };
+        const reference = `CHA-${annee}-${String((c ?? 0) + 1).padStart(4, '0')}`;
+
+        await DB.prepare(
+          `INSERT INTO reservations
+            (logement_id, reference, voyageur_nom, voyageur_email, voyageur_telephone,
+             nb_personnes, date_arrivee, date_depart, nb_nuits, message, statut, statut_paiement)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'en_attente', 'impaye')`
+        ).bind(logement.id, reference, nom, email, telephone, personnes, arrivee, depart, nbNuits, message).run();
+
+        confirmation = `Votre demande a bien été enregistrée (réf. ${reference}). Nous revenons vers vous rapidement pour confirmer la disponibilité et les modalités d’acompte.`;
+      }
+    }
+  } catch (e) {
+    erreur = 'Une erreur est survenue. Merci de réessayer ou de nous appeler.';
+  }
+}
+
+const params = Astro.url.searchParams;
+const logementPre = params.get('logement') ?? '';
+const aujourdhui = new Date().toISOString().slice(0, 10);
+---
+<Base titre={t('contact.titre')} description="Demande de réservation directe pour les logements du chalet Pensée des Alpes à Châtel." noindex>
+  <section class="section">
+    <div class="conteneur" style="max-width:720px">
+      <h1>{t('contact.titre')}</h1>
+      <p>{t('contact.intro')}</p>
+
+      {confirmation && <div class="alerte" style="background:#eaf3ee;border-color:#b9d6c4;color:#1f4434">{confirmation}</div>}
+      {erreur && <div class="alerte">{erreur}</div>}
+
+      {!confirmation && (
+        <form class="form" method="POST" style="margin-top:1.5rem">
+          <div class="form__champ">
+            <label for="nom">{t('contact.nom')} *</label>
+            <input type="text" id="nom" name="nom" required />
+          </div>
+          <div class="form__champ">
+            <label for="email">{t('contact.email')} *</label>
+            <input type="email" id="email" name="email" required />
+          </div>
+          <div class="form__champ">
+            <label for="telephone">{t('contact.telephone')}</label>
+            <input type="tel" id="telephone" name="telephone" />
+          </div>
+          <div class="form__champ">
+            <label for="logement">{t('contact.logement')} *</label>
+            <select id="logement" name="logement" required>
+              <option value="">—</option>
+              {logements.map((l) => (
+                <option value={l.slug} selected={l.slug === logementPre}>{l.nom}</option>
+              ))}
+            </select>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
+            <div class="form__champ">
+              <label for="arrivee">{t('search.arrivee')} *</label>
+              <input type="date" id="arrivee" name="arrivee" min={aujourdhui} required />
+            </div>
+            <div class="form__champ">
+              <label for="depart">{t('search.depart')} *</label>
+              <input type="date" id="depart" name="depart" min={aujourdhui} required />
+            </div>
+            <div class="form__champ">
+              <label for="personnes">{t('search.personnes')}</label>
+              <select id="personnes" name="personnes">
+                {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => <option value={n}>{n}</option>)}
+              </select>
+            </div>
+          </div>
+          <div class="form__champ">
+            <label for="message">{t('contact.message')}</label>
+            <textarea id="message" name="message" rows="4"></textarea>
+          </div>
+          <p class="note">{t('contact.note_acompte')}</p>
+          <button type="submit" class="btn btn--primaire">{t('contact.envoyer')}</button>
+        </form>
+      )}
+    </div>
+  </section>
+</Base>

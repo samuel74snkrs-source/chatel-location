@@ -1,0 +1,32 @@
+---
+import { useTranslations, type Lang } from '../i18n/ui';
+const lang = (Astro.currentLocale as Lang) ?? 'fr';
+const t = useTranslations(lang);
+const annee = new Date().getFullYear();
+---
+<footer class="pied">
+  <div class="pied__inner">
+    <div>
+      <h4>{t('site.nom')}</h4>
+      <p style="color:#9fb0a7;max-width:38ch;margin:.2rem 0 0">
+        Chalet Pensée des Alpes — 1735 chemin du Petit-Châtel, 74390 Châtel (Haute-Savoie).
+        {t('footer.direct')}
+      </p>
+    </div>
+    <div>
+      <h4>{t('nav.logements')}</h4>
+      <a href="/logements">{t('nav.logements')}</a>
+      <a href="/station">{t('nav.station')}</a>
+      <a href="/contact">{t('nav.contact')}</a>
+    </div>
+    <div>
+      <h4>Informations</h4>
+      <a href="/mentions-legales">{t('footer.mentions')}</a>
+      <a href="/cgv">{t('footer.cgv')}</a>
+      <a href="/confidentialite">{t('footer.confidentialite')}</a>
+    </div>
+  </div>
+  <div class="pied__inner pied__bas" style="padding-top:1.2rem">
+    © {annee} {t('site.nom')} · {t('footer.proprietaire')} : Stéphane et Dominique Grillet-Aubert · Tél. +33 6 82 93 46 01
+  </div>
+</footer>

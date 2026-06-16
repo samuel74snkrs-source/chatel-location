@@ -1,0 +1,87 @@
+---
+import Base from '../layouts/Base.astro';
+import SearchBar from '../components/SearchBar.astro';
+import LogementCard from '../components/LogementCard.astro';
+import Icone from '../components/Icone.astro';
+import { getToutesVignettes } from '../lib/db';
+import { useTranslations, type Lang } from '../i18n/ui';
+
+const lang = (Astro.currentLocale as Lang) ?? 'fr';
+const t = useTranslations(lang);
+
+const DB = Astro.locals.runtime.env.DB;
+const logements = await getToutesVignettes(DB);
+
+const description = 'Location de vacances à Châtel (Portes du Soleil) en réservation directe : chalet Pensée des Alpes, appartements 7 à 10 personnes à 500 m du télésiège. Sans commission.';
+
+// Donnees structurees Schema.org pour l'hebergeur (page d'accueil).
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'LodgingBusiness',
+  name: 'Pensée des Alpes',
+  description,
+  url: Astro.site?.href,
+  address: {
+    '@type': 'PostalAddress',
+    streetAddress: '1735 chemin du Petit-Châtel',
+    addressLocality: 'Châtel',
+    postalCode: '74390',
+    addressCountry: 'FR',
+  },
+  telephone: '+33682934601',
+  priceRange: '€€',
+};
+---
+<Base titre="Location à Châtel en direct" description={description} jsonLd={jsonLd}>
+  <section class="hero">
+    <div class="hero__bg"><img src="/images/placeholders/appart-vue.svg" alt="" /></div>
+    <div class="hero__voile"></div>
+    <div class="hero__inner">
+      <h1>{t('home.hero.titre')}</h1>
+      <p>{t('home.hero.sous_titre')}</p>
+      <div style="margin-top:2rem">
+        <SearchBar />
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="conteneur">
+      <div class="titre-section">
+        <h2>{t('home.avantages.titre')}</h2>
+      </div>
+      <div class="avantages">
+        <div class="avantage">
+          <div class="avantage__icone"><Icone nom="euro" /></div>
+          <h3>{t('home.avantages.1.titre')}</h3>
+          <p>{t('home.avantages.1.texte')}</p>
+        </div>
+        <div class="avantage">
+          <div class="avantage__icone"><Icone nom="ski" /></div>
+          <h3>{t('home.avantages.2.titre')}</h3>
+          <p>{t('home.avantages.2.texte')}</p>
+        </div>
+        <div class="avantage">
+          <div class="avantage__icone"><Icone nom="users" /></div>
+          <h3>{t('home.avantages.3.titre')}</h3>
+          <p>{t('home.avantages.3.texte')}</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--bois">
+    <div class="conteneur">
+      <div class="titre-section">
+        <h2>{t('home.logements.titre')}</h2>
+        <p>{t('site.baseline')}</p>
+      </div>
+      <div class="grille">
+        {logements.map((l) => <LogementCard logement={l} />)}
+      </div>
+      <div style="text-align:center;margin-top:2rem">
+        <a href="/logements" class="btn btn--sapin">{t('home.logements.voir_tout')}</a>
+      </div>
+    </div>
+  </section>
+</Base>

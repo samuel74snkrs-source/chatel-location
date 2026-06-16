@@ -1,0 +1,82 @@
+---
+import { useTranslations, type Lang } from '../i18n/ui';
+import { ui } from '../i18n/ui';
+import type { Disponibilite } from '../lib/types';
+
+interface Props { occupations: Disponibilite[]; mois?: number; }
+const { occupations, mois = 8 } = Astro.props;
+const lang = (Astro.currentLocale as Lang) ?? 'fr';
+const t = useTranslations(lang);
+const nomsMois = ui[lang]?.['cal.mois'] ?? ui.fr['cal.mois'];
+const nomsJours = ui[lang]?.['cal.jours'] ?? ui.fr['cal.jours'];
+
+// Construit un index date(YYYY-MM-DD) -> statut a partir des occupations.
+// date_fin est exclusive (jour de depart libre pour une nouvelle arrivee).
+const statutParJour = new Map<string, 'reserve' | 'bloque'>();
+const isoJour = (d: Date) => d.toISOString().slice(0, 10);
+for (const occ of occupations) {
+  const cur = new Date(occ.date_debut + 'T00:00:00Z');
+  const fin = new Date(occ.date_fin + 'T00:00:00Z');
+  while (cur < fin) {
+    const cle = isoJour(cur);
+    // 'reserve' prime sur 'bloque' a l'affichage.
+    if (occ.statut === 'reserve' || !statutParJour.has(cle)) {
+      statutParJour.set(cle, occ.statut === 'reserve' ? 'reserve' : 'bloque');
+    }
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+}
+
+// Genere la liste des mois a afficher a partir du mois courant.
+const debut = new Date();
+const grilleMois = [];
+for (let m = 0; m < mois; m++) {
+  const annee = debut.getFullYear();
+  const moisIdx = debut.getMonth() + m;
+  const d = new Date(annee, moisIdx, 1);
+  const y = d.getFullYear();
+  const mo = d.getMonth();
+  const premierJour = new Date(y, mo, 1);
+  // Décalage lundi = 0 ... dimanche = 6
+  const offset = (premierJour.getDay() + 6) % 7;
+  const nbJours = new Date(y, mo + 1, 0).getDate();
+  const cellules: { jour: number | null; statut: string | null; passe: boolean }[] = [];
+  for (let i = 0; i < offset; i++) cellules.push({ jour: null, statut: null, passe: false });
+  const auj = isoJour(new Date());
+  for (let j = 1; j <= nbJours; j++) {
+    const cle = `${y}-${String(mo + 1).padStart(2, '0')}-${String(j).padStart(2, '0')}`;
+    cellules.push({ jour: j, statut: statutParJour.get(cle) ?? 'libre', passe: cle < auj });
+  }
+  grilleMois.push({ titre: `${nomsMois[mo]} ${y}`, cellules });
+}
+---
+<div class="cal-grille">
+  {grilleMois.map((mois) => (
+    <div class="cal-mois">
+      <p class="cal-mois__titre">{mois.titre}</p>
+      <table class="cal-table">
+        <thead>
+          <tr>{nomsJours.map((jn) => <th>{jn}</th>)}</tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: Math.ceil(mois.cellules.length / 7) }, (_, semaine) => (
+            <tr>
+              {mois.cellules.slice(semaine * 7, semaine * 7 + 7).map((c) => (
+                <td>
+                  {c.jour === null
+                    ? <span class="cal-jour cal-jour--vide"></span>
+                    : <span class={`cal-jour cal-jour--${c.passe ? 'vide' : c.statut}`}>{c.jour}</span>}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  ))}
+</div>
+<div class="legende">
+  <span><i class="pastille" style="background:#eaf3ee"></i> {t('cal.libre')}</span>
+  <span><i class="pastille" style="background:#f3d6d2"></i> {t('cal.reserve')}</span>
+  <span><i class="pastille" style="background:#e6e2da"></i> {t('cal.bloque')}</span>
+</div>

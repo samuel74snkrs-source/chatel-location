@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-label="Chambre (photo a venir)">
+  <rect width="800" height="600" fill="#e9eef2"/>
+  <rect y="450" width="800" height="150" fill="#cdb89a"/>
+  <rect x="180" y="330" width="440" height="150" rx="10" fill="#8d6e54"/>
+  <rect x="200" y="300" width="400" height="90" rx="14" fill="#f4f1ea"/>
+  <rect x="230" y="320" width="150" height="60" rx="10" fill="#ffffff"/>
+  <rect x="420" y="320" width="150" height="60" rx="10" fill="#ffffff"/>
+  <text x="400" y="560" font-family="Segoe UI, Arial, sans-serif" font-size="26" fill="#5b4a36" text-anchor="middle" opacity="0.85">Chambre · photo à venir</text>
+</svg>

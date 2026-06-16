@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-label="Salon avec cheminee (photo a venir)">
+  <rect width="800" height="600" fill="#efe7da"/>
+  <rect y="430" width="800" height="170" fill="#c8a87f"/>
+  <rect x="540" y="250" width="180" height="180" rx="6" fill="#7b5a3a"/>
+  <rect x="560" y="320" width="140" height="90" rx="4" fill="#3a2a1c"/>
+  <polygon points="600,400 630,330 660,400" fill="#ff9a3c"/>
+  <polygon points="615,400 630,355 645,400" fill="#ffd166"/>
+  <rect x="90" y="330" width="260" height="100" rx="14" fill="#8a9a8a"/>
+  <rect x="110" y="300" width="60" height="40" rx="8" fill="#9caa9c"/>
+  <rect x="270" y="300" width="60" height="40" rx="8" fill="#9caa9c"/>
+  <text x="400" y="560" font-family="Segoe UI, Arial, sans-serif" font-size="26" fill="#5b4a36" text-anchor="middle" opacity="0.85">Salon · photo à venir</text>
+</svg>

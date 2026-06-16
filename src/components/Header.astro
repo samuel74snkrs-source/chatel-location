@@ -1,0 +1,39 @@
+---
+import Icone from './Icone.astro';
+import { useTranslations, type Lang } from '../i18n/ui';
+const lang = (Astro.currentLocale as Lang) ?? 'fr';
+const t = useTranslations(lang);
+---
+<header class="entete">
+  <div class="entete__inner">
+    <a href="/" class="marque" aria-label={t('site.nom')}>
+      <svg class="marque__logo" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <circle cx="24" cy="24" r="23" fill="#1f4434"/>
+        <path d="M12 32 22 14l6 9 4-5 6 14z" fill="#fff"/>
+        <path d="M20 18l2-4 2 4-2 2z" fill="#bfe3f2"/>
+      </svg>
+      <span>{t('site.nom')}</span>
+    </a>
+
+    <button class="nav__burger" id="burger" aria-label="Menu" aria-expanded="false" aria-controls="nav">
+      <Icone nom="menu" />
+    </button>
+
+    <nav class="nav" id="nav" aria-label="Navigation principale">
+      <a href="/">{t('nav.accueil')}</a>
+      <a href="/logements">{t('nav.logements')}</a>
+      <a href="/station">{t('nav.station')}</a>
+      <a href="/contact">{t('nav.contact')}</a>
+      <a href="/contact" class="btn btn--primaire">{t('nav.reserver')}</a>
+    </nav>
+  </div>
+</header>
+
+<script>
+  const burger = document.getElementById('burger');
+  const nav = document.getElementById('nav');
+  burger?.addEventListener('click', () => {
+    const ouvert = nav?.classList.toggle('nav--ouvert');
+    burger.setAttribute('aria-expanded', String(!!ouvert));
+  });
+</script>

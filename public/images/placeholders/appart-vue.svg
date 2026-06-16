@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-label="Vue sur les montagnes (photo a venir)">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#bfe3f2"/>
+      <stop offset="1" stop-color="#eaf6fb"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="url(#sky)"/>
+  <polygon points="0,420 160,250 300,380 460,200 620,360 800,240 800,600 0,600" fill="#7c93a3"/>
+  <polygon points="0,470 200,330 360,440 540,300 720,430 800,380 800,600 0,600" fill="#5c7180"/>
+  <polygon points="120,300 160,250 210,310 175,320" fill="#ffffff"/>
+  <polygon points="420,250 460,200 510,265 470,275" fill="#ffffff"/>
+  <polygon points="0,520 260,420 480,500 800,440 800,600 0,600" fill="#3d5a3d"/>
+  <text x="400" y="560" font-family="Segoe UI, Arial, sans-serif" font-size="26" fill="#ffffff" text-anchor="middle" opacity="0.9">Pensée des Alpes · photo à venir</text>
+</svg>

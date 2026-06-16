@@ -1,0 +1,32 @@
+---
+import { useTranslations, type Lang } from '../i18n/ui';
+const lang = (Astro.currentLocale as Lang) ?? 'fr';
+const t = useTranslations(lang);
+
+interface Props { arrivee?: string; depart?: string; personnes?: number; }
+const { arrivee = '', depart = '', personnes = 2 } = Astro.props;
+
+// Date du jour (min des champs date) au format YYYY-MM-DD.
+const aujourdhui = new Date().toISOString().slice(0, 10);
+---
+<form class="recherche" method="GET" action="/logements" role="search">
+  <div class="recherche__champ">
+    <label for="arrivee">{t('search.arrivee')}</label>
+    <input type="date" id="arrivee" name="arrivee" value={arrivee} min={aujourdhui} required />
+  </div>
+  <div class="recherche__champ">
+    <label for="depart">{t('search.depart')}</label>
+    <input type="date" id="depart" name="depart" value={depart} min={aujourdhui} required />
+  </div>
+  <div class="recherche__champ">
+    <label for="personnes">{t('search.personnes')}</label>
+    <select id="personnes" name="personnes">
+      {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+        <option value={n} selected={n === personnes}>
+          {n} {n > 1 ? t('search.personnes_pluriel') : t('search.personne')}
+        </option>
+      ))}
+    </select>
+  </div>
+  <button type="submit" class="btn btn--sapin">{t('search.rechercher')}</button>
+</form>

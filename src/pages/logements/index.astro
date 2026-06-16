@@ -1,0 +1,50 @@
+---
+import Base from '../../layouts/Base.astro';
+import SearchBar from '../../components/SearchBar.astro';
+import LogementCard from '../../components/LogementCard.astro';
+import { getToutesVignettes, rechercherDisponibles } from '../../lib/db';
+import { useTranslations, type Lang } from '../../i18n/ui';
+import { dateCourte } from '../../lib/format';
+
+const lang = (Astro.currentLocale as Lang) ?? 'fr';
+const t = useTranslations(lang);
+const DB = Astro.locals.runtime.env.DB;
+
+// Lecture des criteres de recherche (querystring).
+const params = Astro.url.searchParams;
+const arrivee = params.get('arrivee') ?? '';
+const depart = params.get('depart') ?? '';
+const personnes = Number(params.get('personnes') ?? '2') || 2;
+
+// Recherche valide uniquement si arrivee < depart.
+const rechercheActive = !!arrivee && !!depart && arrivee < depart;
+
+const logements = rechercheActive
+  ? await rechercherDisponibles(DB, arrivee, depart, personnes)
+  : await getToutesVignettes(DB);
+
+const description = 'Tous nos logements de vacances à Châtel : appartements du chalet Pensée des Alpes, de 7 à 10 personnes, à 500 m du télésiège. Réservation directe sans commission.';
+---
+<Base titre={t('liste.titre')} description={description}>
+  <section class="section--bois" style="padding:2rem 0">
+    <div class="conteneur">
+      <h1 style="margin:.2rem 0 1.2rem">{t('liste.titre')}</h1>
+      <SearchBar arrivee={arrivee} depart={depart} personnes={personnes} />
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="conteneur">
+      {rechercheActive && (
+        <p class="note" style="margin-bottom:1.2rem">
+          {dateCourte(arrivee)} → {dateCourte(depart)} · {personnes} {personnes > 1 ? t('search.personnes_pluriel') : t('search.personne')}
+          {' — '}<strong>{logements.length}</strong> {t('search.resultats')}
+        </p>
+      )}
+
+      {logements.length === 0
+        ? <div class="alerte">{t('search.aucun')}</div>
+        : <div class="grille">{logements.map((l) => <LogementCard logement={l} />)}</div>}
+    </div>
+  </section>
+</Base>

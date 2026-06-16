@@ -1,0 +1,98 @@
+// Couche d'acces aux donnees (Cloudflare D1).
+// Toutes les requetes publiques se limitent aux logements 'publie'.
+import type { D1Database } from '@cloudflare/workers-types';
+import type { Logement, LogementVignette, Photo, Tarif, Disponibilite } from './types';
+
+// Liste des logements publies, avec photo de couverture et prix d'appel (vignettes).
+export async function getLogementsPublies(DB: D1Database): Promise<LogementVignette[]> {
+  const { results } = await DB.prepare(
+    `SELECT l.*,
+            (SELECT p.url_r2 FROM photos p WHERE p.logement_id = l.id
+              ORDER BY p.est_couverture DESC, p.ordre ASC LIMIT 1) AS couverture,
+            (SELECT p.texte_alt FROM photos p WHERE p.logement_id = l.id
+              ORDER BY p.est_couverture DESC, p.ordre ASC LIMIT 1) AS couverture_alt,
+            (SELECT MIN(t.prix_semaine) FROM tarifs t WHERE t.logement_id = l.id) AS prix_min_semaine
+       FROM logements l
+      WHERE l.statut = 'publie'
+      ORDER BY l.capacite_max DESC, l.nom ASC`
+  ).all<LogementVignette>();
+  return results ?? [];
+}
+
+// Toutes les vignettes (publie OU brouillon) — utile pour la page liste qui montre
+// aussi les fiches "a completer". Le drapeau statut permet de les distinguer a l'affichage.
+export async function getToutesVignettes(DB: D1Database): Promise<LogementVignette[]> {
+  const { results } = await DB.prepare(
+    `SELECT l.*,
+            (SELECT p.url_r2 FROM photos p WHERE p.logement_id = l.id
+              ORDER BY p.est_couverture DESC, p.ordre ASC LIMIT 1) AS couverture,
+            (SELECT p.texte_alt FROM photos p WHERE p.logement_id = l.id
+              ORDER BY p.est_couverture DESC, p.ordre ASC LIMIT 1) AS couverture_alt,
+            (SELECT MIN(t.prix_semaine) FROM tarifs t WHERE t.logement_id = l.id) AS prix_min_semaine
+       FROM logements l
+      WHERE l.statut IN ('publie', 'brouillon')
+      ORDER BY (l.statut = 'publie') DESC, l.capacite_max DESC, l.nom ASC`
+  ).all<LogementVignette>();
+  return results ?? [];
+}
+
+export async function getLogementBySlug(DB: D1Database, slug: string): Promise<Logement | null> {
+  const row = await DB.prepare(
+    `SELECT * FROM logements WHERE slug = ? LIMIT 1`
+  ).bind(slug).first<Logement>();
+  return row ?? null;
+}
+
+export async function getPhotos(DB: D1Database, logementId: number): Promise<Photo[]> {
+  const { results } = await DB.prepare(
+    `SELECT * FROM photos WHERE logement_id = ? ORDER BY est_couverture DESC, ordre ASC`
+  ).bind(logementId).all<Photo>();
+  return results ?? [];
+}
+
+export async function getTarifs(DB: D1Database, logementId: number): Promise<Tarif[]> {
+  const { results } = await DB.prepare(
+    `SELECT * FROM tarifs WHERE logement_id = ? ORDER BY date_debut ASC`
+  ).bind(logementId).all<Tarif>();
+  return results ?? [];
+}
+
+// Disponibilites occupees (reserve/bloque) a partir d'aujourd'hui.
+export async function getOccupations(DB: D1Database, logementId: number): Promise<Disponibilite[]> {
+  const { results } = await DB.prepare(
+    `SELECT * FROM disponibilites
+      WHERE logement_id = ? AND statut IN ('reserve', 'bloque') AND date_fin >= date('now')
+      ORDER BY date_debut ASC`
+  ).bind(logementId).all<Disponibilite>();
+  return results ?? [];
+}
+
+// Recherche : logements publies dont la capacite suffit et qui n'ont AUCUN
+// chevauchement reserve/bloque sur [arrivee, depart[. Coeur de l'anti double-booking cote public.
+export async function rechercherDisponibles(
+  DB: D1Database,
+  arrivee: string,
+  depart: string,
+  personnes: number
+): Promise<LogementVignette[]> {
+  const { results } = await DB.prepare(
+    `SELECT l.*,
+            (SELECT p.url_r2 FROM photos p WHERE p.logement_id = l.id
+              ORDER BY p.est_couverture DESC, p.ordre ASC LIMIT 1) AS couverture,
+            (SELECT p.texte_alt FROM photos p WHERE p.logement_id = l.id
+              ORDER BY p.est_couverture DESC, p.ordre ASC LIMIT 1) AS couverture_alt,
+            (SELECT MIN(t.prix_semaine) FROM tarifs t WHERE t.logement_id = l.id) AS prix_min_semaine
+       FROM logements l
+      WHERE l.statut = 'publie'
+        AND l.capacite_max >= ?
+        AND NOT EXISTS (
+          SELECT 1 FROM disponibilites d
+           WHERE d.logement_id = l.id
+             AND d.statut IN ('reserve', 'bloque')
+             AND d.date_debut < ?      -- depart
+             AND d.date_fin   > ?      -- arrivee
+        )
+      ORDER BY l.capacite_max ASC, l.nom ASC`
+  ).bind(personnes, depart, arrivee).all<LogementVignette>();
+  return results ?? [];
+}

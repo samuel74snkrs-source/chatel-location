@@ -1,0 +1,35 @@
+---
+import Icone from './Icone.astro';
+import { useTranslations, type Lang } from '../i18n/ui';
+import { prixEuro } from '../lib/format';
+import type { LogementVignette } from '../lib/types';
+
+interface Props { logement: LogementVignette; }
+const { logement: l } = Astro.props;
+const lang = (Astro.currentLocale as Lang) ?? 'fr';
+const t = useTranslations(lang);
+const brouillon = l.statut === 'brouillon';
+---
+<article class="carte">
+  <a href={`/logements/${l.slug}`} class="carte__media" aria-label={l.nom}>
+    {brouillon
+      ? <span class="carte__badge carte__badge--brouillon">{t('fiche.brouillon')}</span>
+      : <span class="carte__badge">{l.capacite_max} {t('liste.personnes')}</span>}
+    <img src={l.couverture ?? '/images/placeholders/appart-vue.svg'} alt={l.couverture_alt ?? l.nom} loading="lazy" width="600" height="450" />
+  </a>
+  <div class="carte__corps">
+    <h3 class="carte__titre">{l.nom}</h3>
+    <div class="carte__meta">
+      <span><Icone nom="users" /> {l.capacite_max} {t('liste.personnes')}</span>
+      <span><Icone nom="bed" /> {l.nb_chambres} {t('liste.chambres')}</span>
+      {l.surface_m2 && <span><Icone nom="ruler" /> {l.surface_m2} m²</span>}
+    </div>
+    {l.description_courte && <p style="margin:.2rem 0;color:var(--texte-doux);font-size:.95rem">{l.description_courte}</p>}
+    <div class="carte__prix">
+      {l.prix_min_semaine
+        ? <>{`${t('liste.a_partir_de')} ${prixEuro(l.prix_min_semaine)} `}<small>{t('liste.par_semaine')}</small></>
+        : <small>{t('fiche.brouillon')}</small>}
+    </div>
+    <a href={`/logements/${l.slug}`} class="btn btn--primaire btn--bloc" style="margin-top:.4rem">{t('liste.voir')}</a>
+  </div>
+</article>

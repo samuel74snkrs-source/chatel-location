@@ -1,0 +1,183 @@
+---
+import Base from '../../layouts/Base.astro';
+import Icone from '../../components/Icone.astro';
+import Calendar from '../../components/Calendar.astro';
+import { getLogementBySlug, getPhotos, getTarifs, getOccupations } from '../../lib/db';
+import { useTranslations, type Lang, ui } from '../../i18n/ui';
+import { prixEuro, parseEquipements } from '../../lib/format';
+
+const lang = (Astro.currentLocale as Lang) ?? 'fr';
+const t = useTranslations(lang);
+const DB = Astro.locals.runtime.env.DB;
+
+const { slug } = Astro.params;
+const logement = slug ? await getLogementBySlug(DB, slug) : null;
+
+// 404 si introuvable ou masque.
+if (!logement || logement.statut === 'masque') {
+  return new Response(null, { status: 404, statusText: 'Logement introuvable' });
+}
+
+const [photos, tarifs, occupations] = await Promise.all([
+  getPhotos(DB, logement.id),
+  getTarifs(DB, logement.id),
+  getOccupations(DB, logement.id),
+]);
+
+const equipements = parseEquipements(logement.equipements);
+const brouillon = logement.statut === 'brouillon';
+const tarifIndicatif = tarifs.some((tf) => tf.nom_periode.toLowerCase().includes('indicatif'));
+
+// Icone associee a chaque code d'equipement.
+const iconeEquip: Record<string, string> = {
+  wifi: 'wifi', parking_garage: 'car', lave_vaisselle: 'dish', lave_linge_partage: 'wash',
+  cheminee_poele: 'fire', television: 'tv', casier_skis: 'ski', balcon: 'balcony',
+  vue_montagne: 'eye', animaux_acceptes: 'paw', borne_recharge: 'plug',
+};
+const libelleEquip = (code: string) =>
+  (ui[lang] as Record<string, string>)[`equip.${code}`] ?? (ui.fr as Record<string, string>)[`equip.${code}`] ?? code;
+
+const couverture = photos.find((p) => p.est_couverture) ?? photos[0];
+const description = logement.description_courte ?? `${logement.nom} à Châtel`;
+
+// Donnees structurees Schema.org : location de vacances.
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'VacationRental',
+  name: logement.nom,
+  description: logement.description_courte,
+  url: new URL(Astro.url.pathname, Astro.site).href,
+  numberOfRooms: logement.nb_chambres,
+  occupancy: { '@type': 'QuantitativeValue', maxValue: logement.capacite_max },
+  ...(logement.surface_m2 ? { floorSize: { '@type': 'QuantitativeValue', value: logement.surface_m2, unitCode: 'MTK' } } : {}),
+  address: {
+    '@type': 'PostalAddress',
+    streetAddress: logement.adresse,
+    addressLocality: 'Châtel',
+    postalCode: '74390',
+    addressCountry: 'FR',
+  },
+  ...(logement.latitude && logement.longitude
+    ? { geo: { '@type': 'GeoCoordinates', latitude: logement.latitude, longitude: logement.longitude } }
+    : {}),
+  image: couverture ? new URL(couverture.url_r2, Astro.site).href : undefined,
+  amenityFeature: equipements.map((code) => ({
+    '@type': 'LocationFeatureSpecification', name: libelleEquip(code), value: true,
+  })),
+};
+---
+<Base titre={logement.nom} description={description} image={couverture?.url_r2} jsonLd={jsonLd} noindex={brouillon}>
+  <div class="conteneur">
+    <nav class="ariane" aria-label="Fil d'Ariane">
+      <a href="/">{t('nav.accueil')}</a> ·
+      <a href="/logements">{t('nav.logements')}</a> ·
+      <span>{logement.nom}</span>
+    </nav>
+
+    {photos.length > 0 && (
+      <div class="fiche__galerie">
+        {photos.slice(0, 5).map((p) => (
+          <a href={p.url_r2} target="_blank" rel="noopener">
+            <img src={p.url_r2} alt={p.texte_alt ?? logement.nom} loading="lazy" />
+          </a>
+        ))}
+      </div>
+    )}
+
+    <div style="margin:1.6rem 0 .4rem"><h1>{logement.nom}</h1></div>
+    {brouillon && <div class="alerte" style="margin-bottom:1rem">{t('fiche.brouillon')} — informations à confirmer par le propriétaire.</div>}
+
+    <div class="fiche__layout">
+      <div>
+        <ul class="specs">
+          <li><Icone nom="users" /> {logement.capacite_max} {t('liste.personnes')}</li>
+          <li><Icone nom="bed" /> {logement.nb_chambres} {t('liste.chambres')}</li>
+          <li><Icone nom="bath" /> {logement.nb_sdb} {t('liste.sdb')}</li>
+          {logement.surface_m2 && <li><Icone nom="ruler" /> {logement.surface_m2} m²</li>}
+          {logement.altitude && <li><Icone nom="altitude" /> {logement.altitude} m</li>}
+        </ul>
+
+        {logement.description_longue && (
+          <section style="margin-top:1.5rem">
+            <h2>{t('fiche.description')}</h2>
+            {logement.description_longue.split('\n\n').map((para) => <p>{para}</p>)}
+          </section>
+        )}
+
+        {equipements.length > 0 && (
+          <section style="margin-top:1.5rem">
+            <h2>{t('fiche.equipements')}</h2>
+            <ul class="equipements">
+              {equipements.map((code) => (
+                <li><Icone nom={iconeEquip[code] ?? 'check'} /> {libelleEquip(code)}</li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {tarifs.length > 0 && (
+          <section style="margin-top:1.5rem">
+            <h2>{t('fiche.tarifs')}</h2>
+            {tarifIndicatif && <p class="note">⚠️ {t('fiche.tarifs_indicatifs')}</p>}
+            <table class="tableau">
+              <thead>
+                <tr>
+                  <th>{t('fiche.periode')}</th>
+                  <th>{t('fiche.semaine')}</th>
+                  <th>{t('fiche.nuit')}</th>
+                  <th>{t('fiche.nuits_min')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tarifs.map((tf) => (
+                  <tr>
+                    <td>{tf.nom_periode}</td>
+                    <td class="prix">{prixEuro(tf.prix_semaine)}</td>
+                    <td>{prixEuro(tf.prix_nuit)}</td>
+                    <td>{tf.nuits_minimum}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        )}
+
+        <section style="margin-top:1.8rem">
+          <h2>{t('fiche.calendrier')}</h2>
+          <Calendar occupations={occupations} />
+        </section>
+
+        {logement.adresse && (
+          <section style="margin-top:1.8rem">
+            <h2>{t('fiche.localisation')}</h2>
+            <p><Icone nom="map" /> {logement.adresse}</p>
+            <a class="btn btn--sapin" target="_blank" rel="noopener"
+               href={`https://www.openstreetmap.org/?mlat=${logement.latitude}&mlon=${logement.longitude}#map=15/${logement.latitude}/${logement.longitude}`}>
+              Voir sur la carte
+            </a>
+          </section>
+        )}
+      </div>
+
+      <aside>
+        <div class="encadre encadre--sticky">
+          {tarifs[0]?.prix_semaine && (
+            <p style="margin:0 0 .5rem">
+              <strong style="font-size:1.5rem;color:var(--bois-fonce)">{`${t('liste.a_partir_de')} ${prixEuro(Math.min(...tarifs.map((tf) => tf.prix_semaine ?? Infinity)))}`}</strong>
+              <span class="note"> {t('liste.par_semaine')}</span>
+            </p>
+          )}
+          {logement.numero_enregistrement_meuble && (
+            <p class="note">{t('fiche.numero_meuble')} : <strong>{logement.numero_enregistrement_meuble}</strong></p>
+          )}
+          <a href={`/contact?logement=${logement.slug}`} class="btn btn--primaire btn--bloc" style="margin-top:.8rem">
+            {t('fiche.reserver')}
+          </a>
+          <p class="note" style="margin-top:.8rem">{t('contact.note_acompte')}</p>
+        </div>
+      </aside>
+    </div>
+
+    <p style="margin:2rem 0"><a href="/logements">← {t('fiche.retour')}</a></p>
+  </div>
+</Base>

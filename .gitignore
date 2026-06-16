@@ -1,0 +1,21 @@
+# build
+dist/
+.astro/
+
+# dependances
+node_modules/
+
+# cloudflare / wrangler (etat local Miniflare : D1, R2, KV)
+.wrangler/
+.dev.vars
+.dev.vars.*
+
+# secrets / env
+.env
+.env.*
+!.env.example
+
+# OS / editeurs
+.DS_Store
+Thumbs.db
+*.log
