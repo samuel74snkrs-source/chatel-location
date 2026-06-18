@@ -93,6 +93,7 @@ export const ui = {
 
     'equip.wifi': 'WiFi',
     'equip.parking_garage': 'Parking au garage',
+    'equip.parking': 'Parking privé',
     'equip.lave_vaisselle': 'Lave-vaisselle',
     'equip.lave_linge_partage': 'Lave-linge (partagé)',
     'equip.cheminee_poele': 'Cheminée / poêle à bois',

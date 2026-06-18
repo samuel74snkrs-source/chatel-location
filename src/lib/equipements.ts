@@ -3,6 +3,7 @@
 export const EQUIPEMENTS_CODES = [
   'wifi',
   'parking_garage',
+  'parking',
   'lave_vaisselle',
   'lave_linge_partage',
   'cheminee_poele',
