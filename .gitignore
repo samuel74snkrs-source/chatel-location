@@ -15,6 +15,9 @@ node_modules/
 .env.*
 !.env.example
 
+# fichiers de mots de passe générés (ne jamais committer)
+seed/_*.sql
+
 # OS / editeurs
 .DS_Store
 Thumbs.db

@@ -1,0 +1,49 @@
+---
+import '../styles/global.css';
+import Icone from '../components/Icone.astro';
+
+// Layout du back-office. Le middleware garantit qu'un utilisateur est connecté
+// pour toute page /espace (hors connexion) — Astro.locals.user est donc défini ici.
+interface Props { titre: string; actif?: string; }
+const { titre, actif } = Astro.props;
+const user = Astro.locals.user!;
+const estAdmin = user.role === 'admin';
+---
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{titre} · Espace · Pensée des Alpes</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" />
+  </head>
+  <body>
+    <div class="espace">
+      <aside class="espace__aside">
+        <a href="/espace" class="espace__marque">
+          <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+            <circle cx="24" cy="24" r="23" fill="#ffffff" opacity="0.12" />
+            <path d="M12 32 22 14l6 9 4-5 6 14z" fill="#fff" />
+          </svg>
+          Espace
+        </a>
+        <nav class="espace__nav">
+          <a href="/espace" class={actif === 'accueil' ? 'actif' : ''}><Icone nom="menu" /> {estAdmin ? 'Tous les logements' : 'Mes logements'}</a>
+          <a href="/" target="_blank"><Icone nom="eye" /> Voir le site public</a>
+        </nav>
+        <div class="espace__user">
+          Connecté : <strong>{user.prenom} {user.nom}</strong><br />
+          {estAdmin ? 'Administrateur' : 'Propriétaire'}<br />
+          <a href="/espace/deconnexion" style="color:#fff;text-decoration:underline">Se déconnecter</a>
+        </div>
+      </aside>
+      <main class="espace__main">
+        <slot />
+      </main>
+    </div>
+  </body>
+</html>

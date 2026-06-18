@@ -1,0 +1,150 @@
+---
+import Espace from '../../../layouts/Espace.astro';
+import { logementAutorise, mettreAJourLogement, manquesPourPublier, compterTarifs, compterPhotos, type MajLogement } from '../../../lib/bo';
+import { parseEquipements } from '../../../lib/format';
+import { EQUIPEMENTS_CODES } from '../../../lib/equipements';
+import { ui } from '../../../i18n/ui';
+
+const user = Astro.locals.user!;
+const DB = Astro.locals.runtime.env.DB;
+const id = Number(Astro.params.id);
+
+let logement = Number.isFinite(id) ? await logementAutorise(DB, id, user) : null;
+if (!logement) return new Response('Logement introuvable', { status: 404 });
+
+const libelleEquip = (code: string) => (ui.fr as Record<string, string>)[`equip.${code}`] ?? code;
+
+let flash: { type: 'ok' | 'err'; msg: string } | null = null;
+
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  const equipements = EQUIPEMENTS_CODES.filter((c) => f.get(`equip_${c}`) === 'on');
+  const surfaceRaw = String(f.get('surface_m2') ?? '').trim();
+  let statut = String(f.get('statut') ?? 'brouillon') as MajLogement['statut'];
+
+  const data: MajLogement = {
+    nom: String(f.get('nom') ?? '').trim(),
+    type: (String(f.get('type') ?? 'appartement') as MajLogement['type']),
+    capacite_max: Number(f.get('capacite_max') ?? 0) || 0,
+    nb_chambres: Number(f.get('nb_chambres') ?? 0) || 0,
+    nb_sdb: Number(f.get('nb_sdb') ?? 0) || 0,
+    surface_m2: surfaceRaw ? Number(surfaceRaw) : null,
+    description_courte: String(f.get('description_courte') ?? '').trim(),
+    description_longue: String(f.get('description_longue') ?? '').trim(),
+    adresse: String(f.get('adresse') ?? '').trim(),
+    numero_enregistrement_meuble: String(f.get('numero_enregistrement_meuble') ?? '').trim(),
+    equipements,
+    statut,
+  };
+
+  if (!data.nom || data.capacite_max < 1) {
+    flash = { type: 'err', msg: 'Le nom et une capacité d’au moins 1 personne sont requis.' };
+  } else {
+    // Charte qualité : on ne publie que si les champs obligatoires sont présents.
+    if (statut === 'publie') {
+      const [nbTarifs, nbPhotos] = await Promise.all([compterTarifs(DB, id), compterPhotos(DB, id)]);
+      const manques = manquesPourPublier({ ...logement, ...data } as any, nbPhotos, nbTarifs);
+      if (manques.length) {
+        data.statut = 'brouillon';
+        flash = { type: 'err', msg: `Publication impossible — il manque : ${manques.join(', ')}. La fiche reste en brouillon.` };
+      }
+    }
+    await mettreAJourLogement(DB, id, data);
+    logement = await logementAutorise(DB, id, user);
+    if (!flash) flash = { type: 'ok', msg: 'Fiche enregistrée.' };
+  }
+}
+
+const equipActuels = new Set(parseEquipements(logement!.equipements));
+---
+<Espace titre={`Modifier ${logement!.nom}`}>
+  <p class="note" style="margin:0"><a href="/espace">← Mes logements</a></p>
+  <h1>Modifier la fiche</h1>
+
+  {flash && <div class={`flash flash--${flash.type}`}>{flash.msg}</div>}
+
+  <form method="POST" class="bo-form">
+    <div>
+      <label for="nom">Nom du logement</label>
+      <input type="text" id="nom" name="nom" value={logement!.nom} required />
+    </div>
+
+    <div class="ligne2">
+      <div>
+        <label for="type">Type</label>
+        <select id="type" name="type">
+          <option value="appartement" selected={logement!.type === 'appartement'}>Appartement</option>
+          <option value="chalet" selected={logement!.type === 'chalet'}>Chalet</option>
+        </select>
+      </div>
+      <div>
+        <label for="statut">Statut</label>
+        <select id="statut" name="statut">
+          <option value="brouillon" selected={logement!.statut === 'brouillon'}>Brouillon (non visible)</option>
+          <option value="publie" selected={logement!.statut === 'publie'}>Publié (visible sur le site)</option>
+          <option value="masque" selected={logement!.statut === 'masque'}>Masqué</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="ligne2">
+      <div>
+        <label for="capacite_max">Capacité (personnes)</label>
+        <input type="number" id="capacite_max" name="capacite_max" min="1" value={logement!.capacite_max} required />
+      </div>
+      <div>
+        <label for="surface_m2">Surface (m²)</label>
+        <input type="number" id="surface_m2" name="surface_m2" min="0" value={logement!.surface_m2 ?? ''} />
+      </div>
+    </div>
+
+    <div class="ligne2">
+      <div>
+        <label for="nb_chambres">Chambres</label>
+        <input type="number" id="nb_chambres" name="nb_chambres" min="0" value={logement!.nb_chambres} />
+      </div>
+      <div>
+        <label for="nb_sdb">Salles de bain</label>
+        <input type="number" id="nb_sdb" name="nb_sdb" min="0" value={logement!.nb_sdb} />
+      </div>
+    </div>
+
+    <div>
+      <label for="description_courte">Description courte (résumé affiché dans les listes)</label>
+      <textarea id="description_courte" name="description_courte" rows="2">{logement!.description_courte}</textarea>
+    </div>
+
+    <div>
+      <label for="description_longue">Description détaillée</label>
+      <textarea id="description_longue" name="description_longue" rows="8">{logement!.description_longue}</textarea>
+    </div>
+
+    <div>
+      <label for="adresse">Adresse</label>
+      <input type="text" id="adresse" name="adresse" value={logement!.adresse ?? ''} />
+    </div>
+
+    <div>
+      <label for="numero_enregistrement_meuble">N° d’enregistrement meublé de tourisme</label>
+      <input type="text" id="numero_enregistrement_meuble" name="numero_enregistrement_meuble" value={logement!.numero_enregistrement_meuble ?? ''} />
+    </div>
+
+    <div>
+      <label>Équipements</label>
+      <div class="bo-equip">
+        {EQUIPEMENTS_CODES.map((code) => (
+          <label>
+            <input type="checkbox" name={`equip_${code}`} checked={equipActuels.has(code)} />
+            {libelleEquip(code)}
+          </label>
+        ))}
+      </div>
+    </div>
+
+    <div style="display:flex;gap:.7rem">
+      <button type="submit" class="btn btn--sapin">Enregistrer</button>
+      <a href="/espace" class="btn btn--contour" style="border-color:var(--bordure);color:var(--texte)">Annuler</a>
+    </div>
+    <p class="note">📷 L’ajout de photos sera disponible une fois le stockage R2 activé.</p>
+  </form>
+</Espace>

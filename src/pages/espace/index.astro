@@ -1,0 +1,39 @@
+---
+import Espace from '../../layouts/Espace.astro';
+import Icone from '../../components/Icone.astro';
+import { logementsDeLUtilisateur } from '../../lib/bo';
+
+const user = Astro.locals.user!;
+const DB = Astro.locals.runtime.env.DB;
+const logements = await logementsDeLUtilisateur(DB, user);
+
+const libelleStatut: Record<string, string> = { publie: 'Publié', brouillon: 'Brouillon', masque: 'Masqué' };
+---
+<Espace titre="Mes logements" actif="accueil">
+  <h1>{user.role === 'admin' ? 'Tous les logements' : 'Mes logements'}</h1>
+  <p class="note" style="margin-top:0">Gérez les fiches, les tarifs et les disponibilités de vos hébergements.</p>
+
+  {logements.length === 0 ? (
+    <div class="flash flash--err" style="margin-top:1.5rem">Aucun logement pour le moment.</div>
+  ) : (
+    <div class="bo-grille" style="margin-top:1.5rem">
+      {logements.map((l) => (
+        <div class="bo-carte">
+          <div style="display:flex;justify-content:space-between;align-items:start;gap:.5rem">
+            <h3>{l.nom}</h3>
+            <span class={`badge badge--${l.statut}`}>{libelleStatut[l.statut]}</span>
+          </div>
+          <p class="note" style="margin:.2rem 0 1rem">
+            {l.type === 'chalet' ? 'Chalet' : 'Appartement'} · {l.capacite_max} pers. · {l.nb_chambres} ch.
+          </p>
+          <div style="display:flex;flex-wrap:wrap;gap:.5rem">
+            <a href={`/espace/logement/${l.id}`} class="btn btn--sapin btn--sm">Modifier la fiche</a>
+            <a href={`/espace/logement/${l.id}/tarifs`} class="btn btn--contour btn--sm" style="border-color:var(--bordure);color:var(--texte)"><Icone nom="euro" /> Tarifs</a>
+            <a href={`/espace/logement/${l.id}/calendrier`} class="btn btn--contour btn--sm" style="border-color:var(--bordure);color:var(--texte)"><Icone nom="calendar" /> Calendrier</a>
+            {l.statut === 'publie' && <a href={`/logements/${l.slug}`} target="_blank" class="btn btn--contour btn--sm" style="border-color:var(--bordure);color:var(--texte)">Voir</a>}
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+</Espace>

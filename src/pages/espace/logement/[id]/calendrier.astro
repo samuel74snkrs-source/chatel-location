@@ -1,0 +1,86 @@
+---
+import Espace from '../../../../layouts/Espace.astro';
+import Calendar from '../../../../components/Calendar.astro';
+import { logementAutorise, bloquerDates, supprimerDisponibilite, toutesOccupations } from '../../../../lib/bo';
+import { dateCourte } from '../../../../lib/format';
+
+const user = Astro.locals.user!;
+const DB = Astro.locals.runtime.env.DB;
+const id = Number(Astro.params.id);
+
+let logement = Number.isFinite(id) ? await logementAutorise(DB, id, user) : null;
+if (!logement) return new Response('Logement introuvable', { status: 404 });
+
+let flash: { type: 'ok' | 'err'; msg: string } | null = null;
+
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  const action = String(f.get('action') ?? '');
+  if (action === 'supprimer') {
+    await supprimerDisponibilite(DB, id, Number(f.get('dispo_id')));
+    flash = { type: 'ok', msg: 'Blocage supprimé.' };
+  } else if (action === 'bloquer') {
+    const debut = String(f.get('date_debut') ?? '');
+    const fin = String(f.get('date_fin') ?? '');
+    if (!debut || !fin || !(debut < fin)) {
+      flash = { type: 'err', msg: 'Période invalide (la date de fin doit suivre la date de début).' };
+    } else {
+      await bloquerDates(DB, id, debut, fin);
+      flash = { type: 'ok', msg: 'Dates bloquées.' };
+    }
+  }
+}
+
+const occupations = await toutesOccupations(DB, id);
+const aVenir = occupations.filter((o) => o.date_fin >= new Date().toISOString().slice(0, 10));
+const libelleSource: Record<string, string> = { direct: 'Réservation directe', airbnb: 'Airbnb', booking: 'Booking', manuel: 'Blocage manuel' };
+const libelleStatut: Record<string, string> = { reserve: 'Réservé', bloque: 'Bloqué', libre: 'Libre' };
+---
+<Espace titre={`Calendrier · ${logement.nom}`}>
+  <p class="note" style="margin:0"><a href="/espace">← Mes logements</a></p>
+  <h1>Calendrier — {logement.nom}</h1>
+  <p class="note" style="margin-top:0">Les réservations importées des plateformes (channel manager) apparaîtront ici automatiquement. Vous pouvez aussi bloquer manuellement des dates.</p>
+
+  {flash && <div class={`flash flash--${flash.type}`}>{flash.msg}</div>}
+
+  <h2 style="font-size:1.3rem;margin-top:1.5rem">Bloquer des dates</h2>
+  <form method="POST" class="bo-form" style="margin-bottom:2rem">
+    <input type="hidden" name="action" value="bloquer" />
+    <div class="ligne2">
+      <div><label for="date_debut">Du (arrivée)</label><input type="date" id="date_debut" name="date_debut" required /></div>
+      <div><label for="date_fin">Au (départ)</label><input type="date" id="date_fin" name="date_fin" required /></div>
+    </div>
+    <button type="submit" class="btn btn--sapin">Bloquer ces dates</button>
+  </form>
+
+  {aVenir.length > 0 && (
+    <>
+      <h2 style="font-size:1.3rem">Périodes occupées (à venir)</h2>
+      <table class="bo-tableau" style="margin-bottom:2rem">
+        <thead><tr><th>Du</th><th>Au</th><th>Statut</th><th>Source</th><th></th></tr></thead>
+        <tbody>
+          {aVenir.map((o) => (
+            <tr>
+              <td>{dateCourte(o.date_debut)}</td>
+              <td>{dateCourte(o.date_fin)}</td>
+              <td>{libelleStatut[o.statut]}</td>
+              <td>{libelleSource[o.source]}</td>
+              <td>
+                {o.source === 'manuel' ? (
+                  <form method="POST" onsubmit="return confirm('Débloquer ces dates ?')">
+                    <input type="hidden" name="action" value="supprimer" />
+                    <input type="hidden" name="dispo_id" value={o.id} />
+                    <button type="submit" class="btn btn--danger btn--sm">Débloquer</button>
+                  </form>
+                ) : <span class="note">—</span>}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  )}
+
+  <h2 style="font-size:1.3rem">Aperçu</h2>
+  <Calendar occupations={occupations} mois={6} />
+</Espace>

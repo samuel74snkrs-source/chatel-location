@@ -1,0 +1,75 @@
+---
+import '../../styles/global.css';
+import { verifierMotDePasse, creerSession, cookieSession, type Utilisateur } from '../../lib/auth';
+
+const env = Astro.locals.runtime.env;
+const DB = env.DB;
+const KV = env.SESSION;
+
+// Déjà connecté ? -> direction l'espace.
+if (Astro.locals.user) return Astro.redirect('/espace');
+
+const retour = Astro.url.searchParams.get('retour') || '/espace';
+let erreur: string | null = null;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const email = String(form.get('email') ?? '').trim().toLowerCase();
+  const motDePasse = String(form.get('motdepasse') ?? '');
+  const dest = String(form.get('retour') ?? '/espace');
+
+  const row = await DB.prepare(
+    `SELECT id, nom, prenom, email, role, statut, mot_de_passe_hash FROM proprietaires WHERE lower(email) = ?`
+  ).bind(email).first<Utilisateur & { statut: string; mot_de_passe_hash: string | null }>();
+
+  const ok = row && row.statut === 'actif' && (await verifierMotDePasse(motDePasse, row.mot_de_passe_hash));
+  if (ok && row) {
+    const token = await creerSession(KV, { id: row.id, nom: row.nom, prenom: row.prenom, email: row.email, role: row.role });
+    const secure = Astro.url.protocol === 'https:';
+    // Sécurité : ne rediriger que vers une route interne.
+    const destination = dest.startsWith('/espace') ? dest : '/espace';
+    // On construit la réponse à la main : Astro.redirect() créerait une nouvelle
+    // réponse qui perdrait l'en-tête Set-Cookie.
+    return new Response(null, {
+      status: 302,
+      headers: { Location: destination, 'Set-Cookie': cookieSession(token, secure) },
+    });
+  }
+  erreur = 'E-mail ou mot de passe incorrect.';
+}
+---
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Connexion · Espace · Pensée des Alpes</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600;700&display=swap" />
+  </head>
+  <body>
+    <div class="connexion">
+      <div class="connexion__carte">
+        <h1>Espace propriétaire</h1>
+        <p class="note" style="margin-top:0">Connectez-vous pour gérer vos logements.</p>
+        {erreur && <div class="flash flash--err">{erreur}</div>}
+        <form method="POST" class="bo-form" style="max-width:none">
+          <input type="hidden" name="retour" value={retour} />
+          <div>
+            <label for="email">E-mail</label>
+            <input type="email" id="email" name="email" required autocomplete="username" />
+          </div>
+          <div>
+            <label for="motdepasse">Mot de passe</label>
+            <input type="password" id="motdepasse" name="motdepasse" required autocomplete="current-password" />
+          </div>
+          <button type="submit" class="btn btn--sapin btn--bloc">Se connecter</button>
+        </form>
+        <p class="note" style="margin-top:1.2rem"><a href="/">← Retour au site</a></p>
+      </div>
+    </div>
+  </body>
+</html>

@@ -16,10 +16,11 @@
   --carte: #ffffff;
   --ombre: 0 6px 24px rgba(31, 68, 52, 0.08);
   --ombre-forte: 0 14px 40px rgba(31, 68, 52, 0.16);
-  --rayon: 16px;
-  --rayon-sm: 10px;
+  --rayon: 18px;
+  --rayon-sm: 11px;
   --max: 1140px;
-  --police: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  --police: "Inter", "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  --police-titre: "Fraunces", Georgia, "Times New Roman", serif;
 }
 
 * { box-sizing: border-box; }
@@ -35,9 +36,9 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3 { line-height: 1.2; color: var(--sapin); font-weight: 700; }
-h1 { font-size: clamp(1.9rem, 4vw, 3rem); }
-h2 { font-size: clamp(1.5rem, 3vw, 2.1rem); }
+h1, h2, h3 { line-height: 1.12; color: var(--sapin); font-weight: 600; font-family: var(--police-titre); letter-spacing: -0.01em; }
+h1 { font-size: clamp(2.1rem, 4.4vw, 3.35rem); font-weight: 600; }
+h2 { font-size: clamp(1.6rem, 3vw, 2.3rem); }
 a { color: var(--sapin-clair); }
 
 img { max-width: 100%; display: block; }
@@ -211,3 +212,95 @@ img { max-width: 100%; display: block; }
 .titre-section p { color: var(--texte-doux); font-size: 1.08rem; }
 
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+
+/* =====================================================================
+   Finitions design (typo, hero, animations) + back-office
+   ===================================================================== */
+
+.marque { font-family: var(--police-titre); font-weight: 600; font-size: 1.25rem; letter-spacing: -0.01em; }
+.titre-section h2 { font-size: clamp(1.7rem, 3.2vw, 2.5rem); }
+.titre-section p { font-size: 1.12rem; }
+
+/* Hero plus généreux et soigné */
+.hero__inner { padding: 5.5rem 1.25rem 4rem; }
+.hero h1 { max-width: 16ch; letter-spacing: -0.02em; }
+.hero p { margin-top: 1rem; }
+.hero__kicker {
+  display: inline-flex; align-items: center; gap: .5rem; margin-bottom: 1.1rem;
+  padding: .35rem .9rem; border-radius: 999px; font-size: .82rem; font-weight: 600;
+  letter-spacing: .04em; text-transform: uppercase;
+  background: rgba(255,255,255,.16); color: #fff; backdrop-filter: blur(4px);
+  border: 1px solid rgba(255,255,255,.25);
+}
+
+/* Boutons : ombre douce + transition affinée */
+.btn { box-shadow: 0 1px 2px rgba(31,68,52,.08); transition: transform .14s ease, box-shadow .14s ease, background .14s ease, filter .14s ease; }
+.btn--primaire:hover { box-shadow: 0 8px 22px rgba(138,87,51,.28); }
+.btn--sapin:hover { box-shadow: 0 8px 22px rgba(31,68,52,.26); }
+
+/* Cartes : média qui zoome doucement au survol */
+.carte__media img { transition: transform .5s cubic-bezier(.2,.7,.2,1); }
+.carte:hover .carte__media img { transform: scale(1.05); }
+.carte__titre { font-family: var(--police-titre); font-weight: 600; }
+
+/* Apparition au scroll (respecte prefers-reduced-motion) */
+.reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; }
+.reveal.is-visible { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } }
+
+/* ---- Back-office (espace propriétaire / admin) ---- */
+.espace { display: grid; grid-template-columns: 248px 1fr; min-height: 100vh; }
+.espace__aside { background: var(--sapin); color: #dceae1; padding: 1.4rem 1rem; display: flex; flex-direction: column; gap: .3rem; }
+.espace__marque { display: flex; align-items: center; gap: .55rem; color: #fff; text-decoration: none; font-family: var(--police-titre); font-weight: 600; font-size: 1.1rem; padding: .2rem .4rem 1rem; }
+.espace__marque svg { width: 30px; height: 30px; }
+.espace__nav a { display: flex; align-items: center; gap: .6rem; color: #cfe0d7; text-decoration: none; padding: .6rem .7rem; border-radius: 9px; font-weight: 500; font-size: .96rem; }
+.espace__nav a:hover { background: rgba(255,255,255,.08); color: #fff; }
+.espace__nav a.actif { background: rgba(255,255,255,.14); color: #fff; }
+.espace__nav svg { width: 19px; height: 19px; }
+.espace__user { margin-top: auto; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,.14); font-size: .85rem; color: #aec3b6; }
+.espace__main { padding: 2rem clamp(1rem, 3vw, 2.4rem); background: var(--neige); }
+.espace__main h1 { font-size: clamp(1.6rem, 3vw, 2.1rem); margin: 0 0 .3rem; }
+@media (max-width: 820px) {
+  .espace { grid-template-columns: 1fr; }
+  .espace__aside { flex-direction: row; flex-wrap: wrap; align-items: center; gap: .4rem; }
+  .espace__marque { padding: .2rem .4rem; width: 100%; }
+  .espace__nav { display: flex; flex-wrap: wrap; gap: .3rem; }
+  .espace__user { margin: 0 0 0 auto; padding: 0; border: 0; }
+}
+
+.bo-grille { display: grid; gap: 1.2rem; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.bo-carte { background: #fff; border: 1px solid var(--bordure); border-radius: var(--rayon); padding: 1.2rem; box-shadow: var(--ombre); }
+.bo-carte h3 { font-family: var(--police-titre); margin: 0 0 .4rem; font-size: 1.15rem; }
+.badge { display: inline-flex; align-items: center; gap: .35rem; padding: .2rem .6rem; border-radius: 999px; font-size: .78rem; font-weight: 600; }
+.badge--publie { background: #e3f1e8; color: #1f6b41; }
+.badge--brouillon { background: #fbeede; color: #8a5733; }
+.badge--masque { background: #ececec; color: #666; }
+
+.bo-form { display: grid; gap: 1.1rem; max-width: 640px; }
+.bo-form .ligne2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.bo-form label { font-weight: 600; font-size: .9rem; display: block; margin-bottom: .3rem; }
+.bo-form input, .bo-form select, .bo-form textarea {
+  width: 100%; padding: .7rem .8rem; border: 1px solid var(--bordure); border-radius: var(--rayon-sm);
+  font-family: inherit; font-size: 1rem; background: #fff;
+}
+.bo-form input:focus, .bo-form select:focus, .bo-form textarea:focus { outline: 2px solid var(--sapin-clair); border-color: var(--sapin-clair); }
+.bo-equip { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: .5rem; }
+.bo-equip label { display: flex; align-items: center; gap: .5rem; font-weight: 500; background: #fff; border: 1px solid var(--bordure); border-radius: var(--rayon-sm); padding: .55rem .7rem; cursor: pointer; }
+.bo-equip input { width: auto; }
+.bo-equip label:has(input:checked) { border-color: var(--sapin-clair); background: #eef5f0; }
+
+.flash { padding: .85rem 1rem; border-radius: var(--rayon-sm); margin-bottom: 1.2rem; font-size: .95rem; }
+.flash--ok { background: #e3f1e8; border: 1px solid #b9d6c4; color: #1f6b41; }
+.flash--err { background: #fbe6e3; border: 1px solid #f0c0b8; color: #9a3b30; }
+
+.bo-tableau { width: 100%; border-collapse: collapse; background: #fff; border-radius: var(--rayon); overflow: hidden; box-shadow: var(--ombre); }
+.bo-tableau th, .bo-tableau td { text-align: left; padding: .7rem .8rem; border-bottom: 1px solid var(--bordure); font-size: .94rem; }
+.bo-tableau th { background: #f3f6f4; color: var(--texte-doux); font-weight: 600; }
+.btn--sm { padding: .45rem .9rem; font-size: .88rem; }
+.btn--danger { background: #fff; color: #9a3b30; border-color: #e7b8b0; }
+.btn--danger:hover { background: #fbe6e3; }
+
+/* Connexion */
+.connexion { min-height: 90vh; display: grid; place-items: center; padding: 2rem 1rem; background: linear-gradient(180deg, #f3ece2, var(--neige)); }
+.connexion__carte { background: #fff; border: 1px solid var(--bordure); border-radius: var(--rayon); box-shadow: var(--ombre-forte); padding: 2.2rem; width: 100%; max-width: 420px; }
+.connexion__carte h1 { font-size: 1.6rem; margin: 0 0 .3rem; }

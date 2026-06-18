@@ -1,0 +1,100 @@
+---
+import Espace from '../../../../layouts/Espace.astro';
+import { logementAutorise, ajouterTarif, supprimerTarif } from '../../../../lib/bo';
+import { getTarifs } from '../../../../lib/db';
+import { prixEuro, dateCourte } from '../../../../lib/format';
+
+const user = Astro.locals.user!;
+const DB = Astro.locals.runtime.env.DB;
+const id = Number(Astro.params.id);
+
+let logement = Number.isFinite(id) ? await logementAutorise(DB, id, user) : null;
+if (!logement) return new Response('Logement introuvable', { status: 404 });
+
+let flash: { type: 'ok' | 'err'; msg: string } | null = null;
+
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  const action = String(f.get('action') ?? '');
+  if (action === 'supprimer') {
+    await supprimerTarif(DB, id, Number(f.get('tarif_id')));
+    flash = { type: 'ok', msg: 'Période tarifaire supprimée.' };
+  } else if (action === 'ajouter') {
+    const nom = String(f.get('nom_periode') ?? '').trim();
+    const debut = String(f.get('date_debut') ?? '');
+    const fin = String(f.get('date_fin') ?? '');
+    const prixSem = String(f.get('prix_semaine') ?? '').trim();
+    const prixNuit = String(f.get('prix_nuit') ?? '').trim();
+    const nuitsMin = Number(f.get('nuits_minimum') ?? 1) || 1;
+    if (!nom || !debut || !fin || !(debut < fin)) {
+      flash = { type: 'err', msg: 'Renseignez un nom et une période valide (la fin doit suivre le début).' };
+    } else {
+      await ajouterTarif(DB, id, {
+        nom_periode: nom, date_debut: debut, date_fin: fin,
+        prix_nuit: prixNuit ? Number(prixNuit) : null,
+        prix_semaine: prixSem ? Number(prixSem) : null,
+        nuits_minimum: nuitsMin,
+      });
+      flash = { type: 'ok', msg: 'Période tarifaire ajoutée.' };
+    }
+  }
+}
+
+const tarifs = await getTarifs(DB, id);
+---
+<Espace titre={`Tarifs · ${logement.nom}`}>
+  <p class="note" style="margin:0"><a href="/espace">← Mes logements</a></p>
+  <h1>Tarifs — {logement.nom}</h1>
+
+  {flash && <div class={`flash flash--${flash.type}`}>{flash.msg}</div>}
+
+  {tarifs.length === 0 ? (
+    <p class="note">Aucune période tarifaire. Ajoutez-en au moins une ci-dessous (obligatoire pour publier le logement).</p>
+  ) : (
+    <table class="bo-tableau" style="margin-bottom:2rem">
+      <thead>
+        <tr><th>Période</th><th>Dates</th><th>Semaine</th><th>Nuit</th><th>Nuits min.</th><th></th></tr>
+      </thead>
+      <tbody>
+        {tarifs.map((t) => (
+          <tr>
+            <td>{t.nom_periode}</td>
+            <td>{dateCourte(t.date_debut)} → {dateCourte(t.date_fin)}</td>
+            <td>{prixEuro(t.prix_semaine)}</td>
+            <td>{prixEuro(t.prix_nuit)}</td>
+            <td>{t.nuits_minimum}</td>
+            <td>
+              <form method="POST" onsubmit="return confirm('Supprimer cette période ?')">
+                <input type="hidden" name="action" value="supprimer" />
+                <input type="hidden" name="tarif_id" value={t.id} />
+                <button type="submit" class="btn btn--danger btn--sm">Supprimer</button>
+              </form>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )}
+
+  <h2 style="font-size:1.3rem">Ajouter une période</h2>
+  <form method="POST" class="bo-form">
+    <input type="hidden" name="action" value="ajouter" />
+    <div>
+      <label for="nom_periode">Nom de la période</label>
+      <input type="text" id="nom_periode" name="nom_periode" placeholder="Vacances de février" required />
+    </div>
+    <div class="ligne2">
+      <div><label for="date_debut">Du</label><input type="date" id="date_debut" name="date_debut" required /></div>
+      <div><label for="date_fin">Au</label><input type="date" id="date_fin" name="date_fin" required /></div>
+    </div>
+    <div class="ligne2">
+      <div><label for="prix_semaine">Prix / semaine (€)</label><input type="number" step="0.01" min="0" id="prix_semaine" name="prix_semaine" /></div>
+      <div><label for="prix_nuit">Prix / nuit (€)</label><input type="number" step="0.01" min="0" id="prix_nuit" name="prix_nuit" /></div>
+    </div>
+    <div>
+      <label for="nuits_minimum">Nuits minimum</label>
+      <input type="number" min="1" id="nuits_minimum" name="nuits_minimum" value="7" style="max-width:120px" />
+    </div>
+    <button type="submit" class="btn btn--sapin">Ajouter la période</button>
+  </form>
+</Espace>
