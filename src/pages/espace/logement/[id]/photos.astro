@@ -1,0 +1,110 @@
+---
+import Espace from '../../../../layouts/Espace.astro';
+import { logementAutorise, ajouterPhoto, supprimerPhotoRow, definirCouverture, compterPhotos } from '../../../../lib/bo';
+import { getPhotos } from '../../../../lib/db';
+import { urlPhoto } from '../../../../lib/format';
+
+const user = Astro.locals.user!;
+const env = Astro.locals.runtime.env;
+const DB = env.DB;
+const id = Number(Astro.params.id);
+
+const logement = Number.isFinite(id) ? await logementAutorise(DB, id, user) : null;
+if (!logement) return new Response('Logement introuvable', { status: 404 });
+
+const r2Actif = !!env.PHOTOS;
+let flash: { type: 'ok' | 'err'; msg: string } | null = null;
+
+const MAX_TAILLE = 12 * 1024 * 1024; // 12 Mo / photo
+const extDepuisType: Record<string, string> = {
+  'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/avif': 'avif', 'image/gif': 'gif',
+};
+
+if (Astro.request.method === 'POST' && r2Actif) {
+  const f = await Astro.request.formData();
+  const action = String(f.get('action') ?? '');
+
+  if (action === 'supprimer') {
+    const cle = await supprimerPhotoRow(DB, id, Number(f.get('photo_id')));
+    if (cle && !cle.startsWith('/')) await env.PHOTOS!.delete(cle);
+    flash = { type: 'ok', msg: 'Photo supprimée.' };
+  } else if (action === 'couverture') {
+    await definirCouverture(DB, id, Number(f.get('photo_id')));
+    flash = { type: 'ok', msg: 'Photo de couverture mise à jour.' };
+  } else if (action === 'upload') {
+    const fichiers = f.getAll('photos').filter((x): x is File => x instanceof File && x.size > 0);
+    const alt = String(f.get('texte_alt') ?? '').trim();
+    let ajoutees = 0;
+    let dejaPresent = await compterPhotos(DB, id);
+    for (const file of fichiers) {
+      const ext = extDepuisType[file.type];
+      if (!ext) { flash = { type: 'err', msg: `Format non supporté : ${file.name} (JPG, PNG, WebP ou AVIF).` }; continue; }
+      if (file.size > MAX_TAILLE) { flash = { type: 'err', msg: `${file.name} dépasse 12 Mo.` }; continue; }
+      const cle = `logements/${id}/${crypto.randomUUID()}.${ext}`;
+      await env.PHOTOS!.put(cle, await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
+      await ajouterPhoto(DB, id, cle, alt || logement.nom, dejaPresent === 0 && ajoutees === 0);
+      ajoutees++;
+    }
+    if (ajoutees > 0 && !flash) flash = { type: 'ok', msg: `${ajoutees} photo(s) ajoutée(s).` };
+  }
+}
+
+const photos = r2Actif ? await getPhotos(DB, id) : [];
+---
+<Espace titre={`Photos · ${logement.nom}`}>
+  <p class="note" style="margin:0"><a href="/espace">← Mes logements</a></p>
+  <h1>Photos — {logement.nom}</h1>
+
+  {flash && <div class={`flash flash--${flash.type}`}>{flash.msg}</div>}
+
+  {!r2Actif ? (
+    <div class="flash flash--err">
+      Le stockage des photos (Cloudflare R2) n’est pas encore activé sur le compte.
+      Une fois R2 activé, cette page permettra d’uploader et gérer les photos.
+    </div>
+  ) : (
+    <>
+      <form method="POST" enctype="multipart/form-data" class="bo-form" style="margin-bottom:2rem">
+        <input type="hidden" name="action" value="upload" />
+        <div>
+          <label for="photos">Ajouter des photos (JPG, PNG, WebP — 12 Mo max chacune)</label>
+          <input type="file" id="photos" name="photos" accept="image/*" multiple required />
+        </div>
+        <div>
+          <label for="texte_alt">Description (texte alternatif, pour le référencement et l’accessibilité)</label>
+          <input type="text" id="texte_alt" name="texte_alt" placeholder="Salon avec vue sur les montagnes" />
+        </div>
+        <button type="submit" class="btn btn--sapin">Téléverser</button>
+      </form>
+
+      {photos.length === 0 ? (
+        <p class="note">Aucune photo pour l’instant. La première photo ajoutée devient la couverture.</p>
+      ) : (
+        <div class="bo-grille">
+          {photos.map((p) => (
+            <div class="bo-carte" style="padding:0;overflow:hidden">
+              <div style="position:relative;aspect-ratio:4/3;background:#eef2ee">
+                <img src={urlPhoto(p.url_r2)} alt={p.texte_alt ?? ''} style="width:100%;height:100%;object-fit:cover" loading="lazy" />
+                {p.est_couverture ? <span class="badge badge--publie" style="position:absolute;top:.6rem;left:.6rem">Couverture</span> : null}
+              </div>
+              <div style="padding:.8rem;display:flex;gap:.5rem;flex-wrap:wrap">
+                {!p.est_couverture && (
+                  <form method="POST">
+                    <input type="hidden" name="action" value="couverture" />
+                    <input type="hidden" name="photo_id" value={p.id} />
+                    <button class="btn btn--contour btn--sm" style="border-color:var(--bordure);color:var(--texte)">Couverture</button>
+                  </form>
+                )}
+                <form method="POST" onsubmit="return confirm('Supprimer cette photo ?')">
+                  <input type="hidden" name="action" value="supprimer" />
+                  <input type="hidden" name="photo_id" value={p.id} />
+                  <button class="btn btn--danger btn--sm">Supprimer</button>
+                </form>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  )}
+</Espace>

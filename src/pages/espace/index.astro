@@ -28,6 +28,7 @@ const libelleStatut: Record<string, string> = { publie: 'Publié', brouillon: 'B
           </p>
           <div style="display:flex;flex-wrap:wrap;gap:.5rem">
             <a href={`/espace/logement/${l.id}`} class="btn btn--sapin btn--sm">Modifier la fiche</a>
+            <a href={`/espace/logement/${l.id}/photos`} class="btn btn--contour btn--sm" style="border-color:var(--bordure);color:var(--texte)"><Icone nom="eye" /> Photos</a>
             <a href={`/espace/logement/${l.id}/tarifs`} class="btn btn--contour btn--sm" style="border-color:var(--bordure);color:var(--texte)"><Icone nom="euro" /> Tarifs</a>
             <a href={`/espace/logement/${l.id}/calendrier`} class="btn btn--contour btn--sm" style="border-color:var(--bordure);color:var(--texte)"><Icone nom="calendar" /> Calendrier</a>
             {l.statut === 'publie' && <a href={`/logements/${l.slug}`} target="_blank" class="btn btn--contour btn--sm" style="border-color:var(--bordure);color:var(--texte)">Voir</a>}

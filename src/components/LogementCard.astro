@@ -1,7 +1,7 @@
 ---
 import Icone from './Icone.astro';
 import { useTranslations, type Lang } from '../i18n/ui';
-import { prixEuro } from '../lib/format';
+import { prixEuro, urlPhoto } from '../lib/format';
 import type { LogementVignette } from '../lib/types';
 
 interface Props { logement: LogementVignette; }
@@ -15,7 +15,7 @@ const brouillon = l.statut === 'brouillon';
     {brouillon
       ? <span class="carte__badge carte__badge--brouillon">{t('fiche.brouillon')}</span>
       : <span class="carte__badge">{l.capacite_max} {t('liste.personnes')}</span>}
-    <img src={l.couverture ?? '/images/placeholders/appart-vue.svg'} alt={l.couverture_alt ?? l.nom} loading="lazy" width="600" height="450" />
+    <img src={urlPhoto(l.couverture)} alt={l.couverture_alt ?? l.nom} loading="lazy" width="600" height="450" />
   </a>
   <div class="carte__corps">
     <h3 class="carte__titre">{l.nom}</h3>

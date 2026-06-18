@@ -145,6 +145,6 @@ const equipActuels = new Set(parseEquipements(logement!.equipements));
       <button type="submit" class="btn btn--sapin">Enregistrer</button>
       <a href="/espace" class="btn btn--contour" style="border-color:var(--bordure);color:var(--texte)">Annuler</a>
     </div>
-    <p class="note">📷 L’ajout de photos sera disponible une fois le stockage R2 activé.</p>
+    <p class="note">📷 Gérez les photos depuis la page <a href={`/espace/logement/${id}/photos`}>Photos</a> (nécessite l’activation du stockage R2).</p>
   </form>
 </Espace>

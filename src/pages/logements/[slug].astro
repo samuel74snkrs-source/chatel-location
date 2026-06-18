@@ -4,7 +4,7 @@ import Icone from '../../components/Icone.astro';
 import Calendar from '../../components/Calendar.astro';
 import { getLogementBySlug, getPhotos, getTarifs, getOccupations } from '../../lib/db';
 import { useTranslations, type Lang, ui } from '../../i18n/ui';
-import { prixEuro, parseEquipements } from '../../lib/format';
+import { prixEuro, parseEquipements, urlPhoto } from '../../lib/format';
 
 const lang = (Astro.currentLocale as Lang) ?? 'fr';
 const t = useTranslations(lang);
@@ -60,7 +60,7 @@ const jsonLd = {
   ...(logement.latitude && logement.longitude
     ? { geo: { '@type': 'GeoCoordinates', latitude: logement.latitude, longitude: logement.longitude } }
     : {}),
-  image: couverture ? new URL(couverture.url_r2, Astro.site).href : undefined,
+  image: couverture ? new URL(urlPhoto(couverture.url_r2), Astro.site).href : undefined,
   amenityFeature: equipements.map((code) => ({
     '@type': 'LocationFeatureSpecification', name: libelleEquip(code), value: true,
   })),
@@ -77,8 +77,8 @@ const jsonLd = {
     {photos.length > 0 && (
       <div class="fiche__galerie">
         {photos.slice(0, 5).map((p) => (
-          <a href={p.url_r2} target="_blank" rel="noopener">
-            <img src={p.url_r2} alt={p.texte_alt ?? logement.nom} loading="lazy" />
+          <a href={urlPhoto(p.url_r2)} target="_blank" rel="noopener">
+            <img src={urlPhoto(p.url_r2)} alt={p.texte_alt ?? logement.nom} loading="lazy" />
           </a>
         ))}
       </div>

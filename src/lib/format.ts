@@ -14,6 +14,15 @@ export function dateCourte(iso: string): string {
   return new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }).format(d);
 }
 
+// Construit l'URL d'affichage d'une photo a partir de la valeur stockee (url_r2).
+// - si elle commence par "/" ou "http", c'est deja une URL/asset statique (placeholders) -> telle quelle
+// - sinon c'est une cle d'objet R2 -> servie par l'endpoint /media/<cle>
+export function urlPhoto(urlR2: string | null | undefined): string {
+  if (!urlR2) return '/images/placeholders/appart-vue.svg';
+  if (urlR2.startsWith('/') || urlR2.startsWith('http')) return urlR2;
+  return `/media/${urlR2}`;
+}
+
 // Parse une liste d'equipements stockee en JSON (tolerant aux valeurs nulles/malformees).
 export function parseEquipements(json: string | null): string[] {
   if (!json) return [];

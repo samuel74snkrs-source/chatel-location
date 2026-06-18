@@ -99,6 +99,40 @@ export async function toutesOccupations(DB: D1Database, logementId: number): Pro
   return results ?? [];
 }
 
+// ---- Photos ----
+export async function ajouterPhoto(
+  DB: D1Database, logementId: number, cle: string, alt: string, estCouverture: boolean
+): Promise<void> {
+  const ordre = (await DB.prepare(`SELECT COALESCE(MAX(ordre), -1) + 1 AS o FROM photos WHERE logement_id = ?`)
+    .bind(logementId).first<{ o: number }>())?.o ?? 0;
+  if (estCouverture) {
+    await DB.prepare(`UPDATE photos SET est_couverture = 0 WHERE logement_id = ?`).bind(logementId).run();
+  }
+  await DB.prepare(
+    `INSERT INTO photos (logement_id, url_r2, ordre, texte_alt, est_couverture) VALUES (?, ?, ?, ?, ?)`
+  ).bind(logementId, cle, ordre, alt, estCouverture ? 1 : 0).run();
+}
+
+// Supprime la ligne photo et renvoie la clé R2 (pour suppression de l'objet).
+export async function supprimerPhotoRow(DB: D1Database, logementId: number, photoId: number): Promise<string | null> {
+  const row = await DB.prepare(`SELECT url_r2, est_couverture FROM photos WHERE id = ? AND logement_id = ?`)
+    .bind(photoId, logementId).first<{ url_r2: string; est_couverture: number }>();
+  if (!row) return null;
+  await DB.prepare(`DELETE FROM photos WHERE id = ? AND logement_id = ?`).bind(photoId, logementId).run();
+  // Si on a supprimé la couverture, promouvoir la première photo restante.
+  if (row.est_couverture) {
+    const prem = await DB.prepare(`SELECT id FROM photos WHERE logement_id = ? ORDER BY ordre ASC LIMIT 1`)
+      .bind(logementId).first<{ id: number }>();
+    if (prem) await DB.prepare(`UPDATE photos SET est_couverture = 1 WHERE id = ?`).bind(prem.id).run();
+  }
+  return row.url_r2;
+}
+
+export async function definirCouverture(DB: D1Database, logementId: number, photoId: number): Promise<void> {
+  await DB.prepare(`UPDATE photos SET est_couverture = 0 WHERE logement_id = ?`).bind(logementId).run();
+  await DB.prepare(`UPDATE photos SET est_couverture = 1 WHERE id = ? AND logement_id = ?`).bind(photoId, logementId).run();
+}
+
 export async function compterTarifs(DB: D1Database, logementId: number): Promise<number> {
   const r = await DB.prepare(`SELECT COUNT(*) AS c FROM tarifs WHERE logement_id = ?`).bind(logementId).first<{ c: number }>();
   return r?.c ?? 0;
