@@ -24,14 +24,10 @@ migrations_dir = "migrations"
 binding = "SESSION"
 id = "26edf84145e74bf5a4245cb7f5b27024"
 
-# Stockage des photos des logements.
-# DESACTIVE temporairement : R2 doit d'abord etre active dans le dashboard Cloudflare.
-# A reactiver pour l'upload des vraies photos (phase back-office) :
-#   1) activer R2 dans le dashboard, 2) `npx wrangler r2 bucket create chatel-photos`,
-#   3) decommenter ce bloc, 4) redeployer.
-# [[r2_buckets]]
-# binding = "PHOTOS"
-# bucket_name = "chatel-photos"
+# Stockage des photos des logements (R2 activé).
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "chatel-photos"
 
 # Tache planifiee : synchronisation periodique des flux iCal (Airbnb/Booking) — anti double-booking.
 # Toutes les 3 heures.
