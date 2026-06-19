@@ -300,6 +300,23 @@ img { max-width: 100%; display: block; }
 .btn--danger { background: #fff; color: #9a3b30; border-color: #e7b8b0; }
 .btn--danger:hover { background: #fbe6e3; }
 
+/* ---- Carrousel photos ---- */
+.carrousel { position: relative; border-radius: var(--rayon); overflow: hidden; box-shadow: var(--ombre); background: #e9efe9; }
+.carrousel__track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; aspect-ratio: 16 / 10; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.carrousel__track::-webkit-scrollbar { display: none; }
+.carrousel__slide { flex: 0 0 100%; scroll-snap-align: center; }
+.carrousel__slide img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.carrousel__btn { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border-radius: 50%; border: 0; background: rgba(255,255,255,.9); cursor: pointer; display: grid; place-items: center; box-shadow: var(--ombre); transition: background .12s ease; }
+.carrousel__btn:hover { background: #fff; }
+.carrousel__btn--prev { left: .8rem; }
+.carrousel__btn--next { right: .8rem; }
+.carrousel__btn svg { width: 22px; height: 22px; color: var(--sapin); }
+.carrousel__dots { position: absolute; bottom: .8rem; left: 0; right: 0; display: flex; gap: .4rem; justify-content: center; }
+.carrousel__dot { width: 9px; height: 9px; border-radius: 50%; border: 0; background: rgba(255,255,255,.6); cursor: pointer; padding: 0; transition: width .15s ease, background .15s ease; }
+.carrousel__dot.actif { background: #fff; width: 22px; border-radius: 6px; }
+.carrousel__compteur { position: absolute; top: .7rem; right: .8rem; background: rgba(0,0,0,.45); color: #fff; font-size: .8rem; padding: .2rem .55rem; border-radius: 999px; }
+@media (max-width: 600px) { .carrousel__track { aspect-ratio: 4 / 3; } }
+
 /* Connexion */
 .connexion { min-height: 90vh; display: grid; place-items: center; padding: 2rem 1rem; background: linear-gradient(180deg, #f3ece2, var(--neige)); }
 .connexion__carte { background: #fff; border: 1px solid var(--bordure); border-radius: var(--rayon); box-shadow: var(--ombre-forte); padding: 2.2rem; width: 100%; max-width: 420px; }

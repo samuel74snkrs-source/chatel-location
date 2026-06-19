@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import { getLogementsPublies, getLogementBySlug } from '../lib/db';
+import { rythmePourDate, validerSejour } from '../lib/sejour';
 import { useTranslations, type Lang } from '../i18n/ui';
 
 const lang = (Astro.currentLocale as Lang) ?? 'fr';
@@ -26,10 +27,13 @@ if (Astro.request.method === 'POST') {
     const personnes = Number(form.get('personnes') ?? '1') || 1;
     const message = String(form.get('message') ?? '').trim();
 
+    const rythme = arrivee ? await rythmePourDate(DB, arrivee) : null;
+    const vSejour = validerSejour(arrivee, depart, rythme);
+
     if (!nom || !email || !logementSlug || !arrivee || !depart) {
       erreur = 'Merci de renseigner au minimum votre nom, e-mail, le logement et les dates.';
-    } else if (!(arrivee < depart)) {
-      erreur = 'La date de départ doit être postérieure à la date d’arrivée.';
+    } else if (!vSejour.ok) {
+      erreur = vSejour.message ?? 'Dates invalides.';
     } else {
       const logement = await getLogementBySlug(DB, logementSlug);
       if (!logement) {

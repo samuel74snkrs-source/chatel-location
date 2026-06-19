@@ -2,6 +2,7 @@
 import Base from '../../layouts/Base.astro';
 import Icone from '../../components/Icone.astro';
 import Calendar from '../../components/Calendar.astro';
+import Carousel from '../../components/Carousel.astro';
 import { getLogementBySlug, getPhotos, getTarifs, getOccupations } from '../../lib/db';
 import { useTranslations, type Lang, ui } from '../../i18n/ui';
 import { prixEuro, parseEquipements, urlPhoto } from '../../lib/format';
@@ -75,13 +76,7 @@ const jsonLd = {
     </nav>
 
     {photos.length > 0 && (
-      <div class="fiche__galerie">
-        {photos.slice(0, 5).map((p) => (
-          <a href={urlPhoto(p.url_r2)} target="_blank" rel="noopener">
-            <img src={urlPhoto(p.url_r2)} alt={p.texte_alt ?? logement.nom} loading="lazy" />
-          </a>
-        ))}
-      </div>
+      <Carousel photos={photos.map((p) => ({ src: urlPhoto(p.url_r2), alt: p.texte_alt ?? logement.nom }))} />
     )}
 
     <div style="margin:1.6rem 0 .4rem"><h1>{logement.nom}</h1></div>

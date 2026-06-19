@@ -1,0 +1,60 @@
+---
+// Carrousel d'images défilable (flèches, points, swipe tactile). Sans dépendance.
+interface Props { photos: { src: string; alt: string }[]; }
+const { photos } = Astro.props;
+const multiple = photos.length > 1;
+---
+<div class="carrousel" data-carrousel>
+  <div class="carrousel__track" data-track>
+    {photos.map((p) => (
+      <div class="carrousel__slide"><img src={p.src} alt={p.alt} loading="lazy" /></div>
+    ))}
+  </div>
+
+  {multiple && (
+    <>
+      <span class="carrousel__compteur" data-compteur>1 / {photos.length}</span>
+      <button type="button" class="carrousel__btn carrousel__btn--prev" data-prev aria-label="Photo précédente">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <button type="button" class="carrousel__btn carrousel__btn--next" data-next aria-label="Photo suivante">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <div class="carrousel__dots" data-dots>
+        {photos.map((_, i) => (
+          <button type="button" class={`carrousel__dot${i === 0 ? ' actif' : ''}`} data-dot={i} aria-label={`Aller à la photo ${i + 1}`}></button>
+        ))}
+      </div>
+    </>
+  )}
+</div>
+
+<script>
+  document.querySelectorAll('[data-carrousel]').forEach((root) => {
+    const track = root.querySelector('[data-track]') as HTMLElement | null;
+    if (!track) return;
+    const slides = track.children.length;
+    if (slides <= 1) return;
+    const prev = root.querySelector('[data-prev]') as HTMLElement;
+    const next = root.querySelector('[data-next]') as HTMLElement;
+    const dots = Array.from(root.querySelectorAll('[data-dot]')) as HTMLElement[];
+    const compteur = root.querySelector('[data-compteur]') as HTMLElement | null;
+
+    const indexActuel = () => Math.round(track.scrollLeft / track.clientWidth);
+    const aller = (i: number) => track.scrollTo({ left: Math.max(0, Math.min(slides - 1, i)) * track.clientWidth, behavior: 'smooth' });
+
+    prev?.addEventListener('click', () => aller(indexActuel() - 1));
+    next?.addEventListener('click', () => aller(indexActuel() + 1));
+    dots.forEach((d, i) => d.addEventListener('click', () => aller(i)));
+
+    let raf = 0;
+    track.addEventListener('scroll', () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const i = indexActuel();
+        dots.forEach((d, j) => d.classList.toggle('actif', j === i));
+        if (compteur) compteur.textContent = `${i + 1} / ${slides}`;
+      });
+    });
+  });
+</script>

@@ -5,44 +5,63 @@ import LogementCard from '../../components/LogementCard.astro';
 import { getToutesVignettes, rechercherDisponibles } from '../../lib/db';
 import { useTranslations, type Lang } from '../../i18n/ui';
 import { dateCourte } from '../../lib/format';
+import { rythmePourDate, validerSejour, nbNuits } from '../../lib/sejour';
 
 const lang = (Astro.currentLocale as Lang) ?? 'fr';
 const t = useTranslations(lang);
 const DB = Astro.locals.runtime.env.DB;
 
-// Lecture des criteres de recherche (querystring).
+// Critères de recherche (querystring).
 const params = Astro.url.searchParams;
 const arrivee = params.get('arrivee') ?? '';
 const depart = params.get('depart') ?? '';
 const personnes = Number(params.get('personnes') ?? '2') || 2;
 
-// Recherche valide uniquement si arrivee < depart.
-const rechercheActive = !!arrivee && !!depart && arrivee < depart;
+const datesFournies = !!arrivee && !!depart;
 
-const logements = rechercheActive
+// Règle de séjour : haute saison = samedi→samedi, entre-saison = flexible.
+let messageRegle: string | null = null;
+let rechercheValide = false;
+let hauteSaison = false;
+if (datesFournies) {
+  const rythme = await rythmePourDate(DB, arrivee);
+  hauteSaison = rythme === 'samedi_samedi';
+  const v = validerSejour(arrivee, depart, rythme);
+  if (v.ok) rechercheValide = true;
+  else messageRegle = v.message ?? null;
+}
+
+const logements = rechercheValide
   ? await rechercherDisponibles(DB, arrivee, depart, personnes)
   : await getToutesVignettes(DB);
 
-const description = 'Tous nos logements de vacances à Châtel : appartements du chalet Pensée des Alpes, de 7 à 10 personnes, à 500 m du télésiège. Réservation directe sans commission.';
+const description = 'Tous nos logements de vacances à Châtel : chalets Pensée des Alpes et L’Étrye, de 7 à 10 personnes, à 50–500 m des pistes. Réservation directe sans commission.';
 ---
 <Base titre={t('liste.titre')} description={description}>
   <section class="section--bois" style="padding:2rem 0">
     <div class="conteneur">
-      <h1 style="margin:.2rem 0 1.2rem">{t('liste.titre')}</h1>
+      <h1 style="margin:.2rem 0 .4rem">Réserver — nos logements à Châtel</h1>
+      <p class="note" style="margin:0 0 1.2rem">Choisissez vos dates et le nombre de voyageurs : seuls les logements disponibles s’affichent.</p>
       <SearchBar arrivee={arrivee} depart={depart} personnes={personnes} />
+      <p class="note" style="margin:.8rem 0 0">🗓️ En haute saison (vacances scolaires, été), les séjours se font <strong>du samedi au samedi</strong>. En entre-saison, les dates sont libres.</p>
     </div>
   </section>
 
   <section class="section">
     <div class="conteneur">
-      {rechercheActive && (
+      {messageRegle && (
+        <div class="alerte" style="margin-bottom:1.2rem">{messageRegle}</div>
+      )}
+
+      {rechercheValide && (
         <p class="note" style="margin-bottom:1.2rem">
-          {dateCourte(arrivee)} → {dateCourte(depart)} · {personnes} {personnes > 1 ? t('search.personnes_pluriel') : t('search.personne')}
+          {dateCourte(arrivee)} → {dateCourte(depart)} · {nbNuits(arrivee, depart)} nuits · {personnes} {personnes > 1 ? t('search.personnes_pluriel') : t('search.personne')}
+          {hauteSaison ? ' · haute saison (samedi-samedi)' : ''}
           {' — '}<strong>{logements.length}</strong> {t('search.resultats')}
         </p>
       )}
 
-      {logements.length === 0
+      {rechercheValide && logements.length === 0
         ? <div class="alerte">{t('search.aucun')}</div>
         : <div class="grille">{logements.map((l) => <LogementCard logement={l} />)}</div>}
     </div>

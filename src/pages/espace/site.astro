@@ -1,0 +1,119 @@
+---
+import Espace from '../../layouts/Espace.astro';
+import { getMediasSite } from '../../lib/db';
+import { ajouterMediaSite, supprimerMediaSite } from '../../lib/bo';
+import { urlPhoto } from '../../lib/format';
+
+const user = Astro.locals.user!;
+// Réservé aux administrateurs : les médias de site sont communs à la plateforme.
+if (user.role !== 'admin') return new Response('Accès réservé à l’administrateur', { status: 403 });
+
+const env = Astro.locals.runtime.env;
+const DB = env.DB;
+const r2Actif = !!env.PHOTOS;
+
+let flash: { type: 'ok' | 'err'; msg: string } | null = null;
+const MAX_TAILLE = 12 * 1024 * 1024;
+const extDepuisType: Record<string, string> = {
+  'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/avif': 'avif', 'image/gif': 'gif',
+};
+
+async function televerser(file: File, emplacement: string, alt: string): Promise<boolean> {
+  const ext = extDepuisType[file.type];
+  if (!ext || file.size > MAX_TAILLE) return false;
+  const cle = `site/${emplacement}/${crypto.randomUUID()}.${ext}`;
+  await env.PHOTOS!.put(cle, await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
+  await ajouterMediaSite(DB, emplacement, cle, alt);
+  return true;
+}
+
+if (Astro.request.method === 'POST' && r2Actif) {
+  const f = await Astro.request.formData();
+  const action = String(f.get('action') ?? '');
+
+  if (action === 'supprimer') {
+    const cle = await supprimerMediaSite(DB, Number(f.get('media_id')));
+    if (cle && !cle.startsWith('/')) await env.PHOTOS!.delete(cle);
+    flash = { type: 'ok', msg: 'Image supprimée.' };
+  } else if (action === 'hero') {
+    const file = f.get('image');
+    if (file instanceof File && file.size > 0) {
+      // Le hero est unique : on remplace l'existant.
+      for (const m of await getMediasSite(DB, 'accueil_hero')) {
+        const cle = await supprimerMediaSite(DB, m.id);
+        if (cle && !cle.startsWith('/')) await env.PHOTOS!.delete(cle);
+      }
+      flash = (await televerser(file, 'accueil_hero', String(f.get('alt') ?? 'Vue de Châtel')))
+        ? { type: 'ok', msg: 'Image d’accueil mise à jour.' }
+        : { type: 'err', msg: 'Format non supporté ou fichier trop lourd (12 Mo max).' };
+    }
+  } else if (action === 'galerie') {
+    const fichiers = f.getAll('images').filter((x): x is File => x instanceof File && x.size > 0);
+    let n = 0;
+    for (const file of fichiers) if (await televerser(file, 'accueil_galerie', String(f.get('alt') ?? ''))) n++;
+    flash = n > 0 ? { type: 'ok', msg: `${n} image(s) ajoutée(s) à la galerie.` } : { type: 'err', msg: 'Aucune image valide.' };
+  }
+}
+
+const hero = r2Actif ? await getMediasSite(DB, 'accueil_hero') : [];
+const galerie = r2Actif ? await getMediasSite(DB, 'accueil_galerie') : [];
+---
+<Espace titre="Page d'accueil" actif="site">
+  <h1>Photos de la page d’accueil</h1>
+  <p class="note" style="margin-top:0">Image principale (hero) et galerie affichées sur la page d’accueil du site.</p>
+
+  {flash && <div class={`flash flash--${flash.type}`}>{flash.msg}</div>}
+
+  {!r2Actif ? (
+    <div class="flash flash--err">Le stockage R2 n’est pas activé : impossible de gérer les images pour l’instant.</div>
+  ) : (
+    <>
+      <h2 style="font-size:1.3rem">Image principale (hero)</h2>
+      <p class="note" style="margin-top:0">Grande image en haut de la page d’accueil. À défaut, la photo de couverture d’un logement publié est utilisée.</p>
+      {hero[0] && (
+        <div class="bo-carte" style="padding:0;overflow:hidden;max-width:420px;margin-bottom:1rem">
+          <img src={urlPhoto(hero[0].url_r2)} alt={hero[0].texte_alt ?? ''} style="width:100%;aspect-ratio:16/9;object-fit:cover" />
+          <div style="padding:.8rem">
+            <form method="POST" onsubmit="return confirm('Supprimer l’image d’accueil ?')">
+              <input type="hidden" name="action" value="supprimer" />
+              <input type="hidden" name="media_id" value={hero[0].id} />
+              <button class="btn btn--danger btn--sm">Supprimer</button>
+            </form>
+          </div>
+        </div>
+      )}
+      <form method="POST" enctype="multipart/form-data" class="bo-form" style="margin-bottom:2.5rem">
+        <input type="hidden" name="action" value="hero" />
+        <div><label for="hero_image">{hero[0] ? 'Remplacer l’image' : 'Choisir l’image'} (JPG, PNG, WebP — 12 Mo max)</label>
+          <input type="file" id="hero_image" name="image" accept="image/*" required /></div>
+        <div><label for="hero_alt">Description</label>
+          <input type="text" id="hero_alt" name="alt" placeholder="Le chalet et les montagnes de Châtel" /></div>
+        <button type="submit" class="btn btn--sapin">Enregistrer l’image d’accueil</button>
+      </form>
+
+      <h2 style="font-size:1.3rem">Galerie d’accueil (optionnelle)</h2>
+      <form method="POST" enctype="multipart/form-data" class="bo-form" style="margin-bottom:1.5rem">
+        <input type="hidden" name="action" value="galerie" />
+        <div><label for="gal_images">Ajouter des images</label>
+          <input type="file" id="gal_images" name="images" accept="image/*" multiple required /></div>
+        <button type="submit" class="btn btn--sapin">Ajouter à la galerie</button>
+      </form>
+      {galerie.length > 0 && (
+        <div class="bo-grille">
+          {galerie.map((m) => (
+            <div class="bo-carte" style="padding:0;overflow:hidden">
+              <img src={urlPhoto(m.url_r2)} alt={m.texte_alt ?? ''} style="width:100%;aspect-ratio:4/3;object-fit:cover" />
+              <div style="padding:.7rem">
+                <form method="POST" onsubmit="return confirm('Supprimer cette image ?')">
+                  <input type="hidden" name="action" value="supprimer" />
+                  <input type="hidden" name="media_id" value={m.id} />
+                  <button class="btn btn--danger btn--sm">Supprimer</button>
+                </form>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  )}
+</Espace>

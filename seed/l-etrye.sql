@@ -77,3 +77,5 @@ INSERT INTO tarifs (logement_id, nom_periode, date_debut, date_fin, prix_nuit, p
   (8, 'Janvier (indicatif)',         '2027-01-02', '2027-02-06', 140, 900, 7),
   (8, 'Vacances de février (indicatif)','2027-02-06','2027-03-06', 320, 2200, 7),
   (8, 'Mars (indicatif)',            '2027-03-06', '2027-04-12', 120, 750, 7);
+
+UPDATE tarifs SET rythme = 'flexible' WHERE logement_id = 8 AND nuits_minimum < 7;

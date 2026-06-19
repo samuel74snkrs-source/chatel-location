@@ -26,6 +26,7 @@ if (Astro.request.method === 'POST') {
     const prixSem = String(f.get('prix_semaine') ?? '').trim();
     const prixNuit = String(f.get('prix_nuit') ?? '').trim();
     const nuitsMin = Number(f.get('nuits_minimum') ?? 1) || 1;
+    const rythme = String(f.get('rythme') ?? 'samedi_samedi') === 'flexible' ? 'flexible' : 'samedi_samedi';
     if (!nom || !debut || !fin || !(debut < fin)) {
       flash = { type: 'err', msg: 'Renseignez un nom et une période valide (la fin doit suivre le début).' };
     } else {
@@ -34,6 +35,7 @@ if (Astro.request.method === 'POST') {
         prix_nuit: prixNuit ? Number(prixNuit) : null,
         prix_semaine: prixSem ? Number(prixSem) : null,
         nuits_minimum: nuitsMin,
+        rythme,
       });
       flash = { type: 'ok', msg: 'Période tarifaire ajoutée.' };
     }
@@ -53,7 +55,7 @@ const tarifs = await getTarifs(DB, id);
   ) : (
     <table class="bo-tableau" style="margin-bottom:2rem">
       <thead>
-        <tr><th>Période</th><th>Dates</th><th>Semaine</th><th>Nuit</th><th>Nuits min.</th><th></th></tr>
+        <tr><th>Période</th><th>Dates</th><th>Semaine</th><th>Nuit</th><th>Nuits min.</th><th>Rythme</th><th></th></tr>
       </thead>
       <tbody>
         {tarifs.map((t) => (
@@ -63,6 +65,7 @@ const tarifs = await getTarifs(DB, id);
             <td>{prixEuro(t.prix_semaine)}</td>
             <td>{prixEuro(t.prix_nuit)}</td>
             <td>{t.nuits_minimum}</td>
+            <td>{t.rythme === 'samedi_samedi' ? 'Samedi-samedi' : 'Flexible'}</td>
             <td>
               <form method="POST" onsubmit="return confirm('Supprimer cette période ?')">
                 <input type="hidden" name="action" value="supprimer" />
@@ -91,9 +94,18 @@ const tarifs = await getTarifs(DB, id);
       <div><label for="prix_semaine">Prix / semaine (€)</label><input type="number" step="0.01" min="0" id="prix_semaine" name="prix_semaine" /></div>
       <div><label for="prix_nuit">Prix / nuit (€)</label><input type="number" step="0.01" min="0" id="prix_nuit" name="prix_nuit" /></div>
     </div>
-    <div>
-      <label for="nuits_minimum">Nuits minimum</label>
-      <input type="number" min="1" id="nuits_minimum" name="nuits_minimum" value="7" style="max-width:120px" />
+    <div class="ligne2">
+      <div>
+        <label for="nuits_minimum">Nuits minimum</label>
+        <input type="number" min="1" id="nuits_minimum" name="nuits_minimum" value="7" />
+      </div>
+      <div>
+        <label for="rythme">Rythme de réservation</label>
+        <select id="rythme" name="rythme">
+          <option value="samedi_samedi">Haute saison — du samedi au samedi</option>
+          <option value="flexible">Entre-saison — dates flexibles</option>
+        </select>
+      </div>
     </div>
     <button type="submit" class="btn btn--sapin">Ajouter la période</button>
   </form>

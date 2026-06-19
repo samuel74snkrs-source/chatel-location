@@ -65,12 +65,30 @@ export function manquesPourPublier(l: Logement, nbPhotos: number, nbTarifs: numb
 // ---- Tarifs ----
 export async function ajouterTarif(
   DB: D1Database, logementId: number,
-  t: { nom_periode: string; date_debut: string; date_fin: string; prix_nuit: number | null; prix_semaine: number | null; nuits_minimum: number }
+  t: { nom_periode: string; date_debut: string; date_fin: string; prix_nuit: number | null; prix_semaine: number | null; nuits_minimum: number; rythme: 'samedi_samedi' | 'flexible' }
 ): Promise<void> {
   await DB.prepare(
-    `INSERT INTO tarifs (logement_id, nom_periode, date_debut, date_fin, prix_nuit, prix_semaine, nuits_minimum)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).bind(logementId, t.nom_periode, t.date_debut, t.date_fin, t.prix_nuit, t.prix_semaine, t.nuits_minimum).run();
+    `INSERT INTO tarifs (logement_id, nom_periode, date_debut, date_fin, prix_nuit, prix_semaine, nuits_minimum, rythme)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(logementId, t.nom_periode, t.date_debut, t.date_fin, t.prix_nuit, t.prix_semaine, t.nuits_minimum, t.rythme).run();
+}
+
+// ---- Médias éditoriaux du site (page d'accueil, etc.) ----
+export async function ajouterMediaSite(
+  DB: D1Database, emplacement: string, cle: string, alt: string
+): Promise<void> {
+  const ordre = (await DB.prepare(`SELECT COALESCE(MAX(ordre), -1) + 1 AS o FROM medias_site WHERE emplacement = ?`)
+    .bind(emplacement).first<{ o: number }>())?.o ?? 0;
+  await DB.prepare(
+    `INSERT INTO medias_site (emplacement, url_r2, ordre, texte_alt) VALUES (?, ?, ?, ?)`
+  ).bind(emplacement, cle, ordre, alt).run();
+}
+
+export async function supprimerMediaSite(DB: D1Database, id: number): Promise<string | null> {
+  const row = await DB.prepare(`SELECT url_r2 FROM medias_site WHERE id = ?`).bind(id).first<{ url_r2: string }>();
+  if (!row) return null;
+  await DB.prepare(`DELETE FROM medias_site WHERE id = ?`).bind(id).run();
+  return row.url_r2;
 }
 
 export async function supprimerTarif(DB: D1Database, logementId: number, tarifId: number): Promise<void> {

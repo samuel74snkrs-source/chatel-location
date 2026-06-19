@@ -3,18 +3,25 @@ import Base from '../layouts/Base.astro';
 import SearchBar from '../components/SearchBar.astro';
 import LogementCard from '../components/LogementCard.astro';
 import Icone from '../components/Icone.astro';
-import { getToutesVignettes } from '../lib/db';
+import { getToutesVignettes, getMediasSite } from '../lib/db';
 import { urlPhoto } from '../lib/format';
 import { useTranslations, type Lang } from '../i18n/ui';
+import Carousel from '../components/Carousel.astro';
 
 const lang = (Astro.currentLocale as Lang) ?? 'fr';
 const t = useTranslations(lang);
 
 const DB = Astro.locals.runtime.env.DB;
 const logements = await getToutesVignettes(DB);
+const [heroMedias, galerie] = await Promise.all([
+  getMediasSite(DB, 'accueil_hero'),
+  getMediasSite(DB, 'accueil_galerie'),
+]);
 
-// Image du hero : couverture d'un logement publié si disponible, sinon placeholder.
-const heroImg = urlPhoto(logements.find((l) => l.statut === 'publie')?.couverture);
+// Image du hero : média d'accueil dédié > couverture d'un logement publié > placeholder.
+const heroImg = heroMedias[0]
+  ? urlPhoto(heroMedias[0].url_r2)
+  : urlPhoto(logements.find((l) => l.statut === 'publie')?.couverture);
 
 const description = 'Location de vacances à Châtel (Portes du Soleil) en réservation directe : chalet Pensée des Alpes, appartements 7 à 10 personnes à 500 m du télésiège. Sans commission.';
 
@@ -89,4 +96,15 @@ const jsonLd = {
       </div>
     </div>
   </section>
+
+  {galerie.length > 0 && (
+    <section class="section">
+      <div class="conteneur">
+        <div class="titre-section"><h2>Châtel en images</h2></div>
+        <div class="reveal" style="max-width:880px;margin:0 auto">
+          <Carousel photos={galerie.map((m) => ({ src: urlPhoto(m.url_r2), alt: m.texte_alt ?? 'Châtel' }))} />
+        </div>
+      </div>
+    </section>
+  )}
 </Base>

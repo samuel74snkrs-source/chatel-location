@@ -41,6 +41,16 @@ export interface Tarif {
   prix_nuit: number | null;
   prix_semaine: number | null;
   nuits_minimum: number;
+  rythme: 'samedi_samedi' | 'flexible';
+}
+
+export interface MediaSite {
+  id: number;
+  emplacement: string;
+  url_r2: string;
+  ordre: number;
+  texte_alt: string | null;
+  date_creation: string;
 }
 
 export interface Disponibilite {

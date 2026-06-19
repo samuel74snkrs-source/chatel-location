@@ -33,6 +33,7 @@ const estAdmin = user.role === 'admin';
         </a>
         <nav class="espace__nav">
           <a href="/espace" class={actif === 'accueil' ? 'actif' : ''}><Icone nom="menu" /> {estAdmin ? 'Tous les logements' : 'Mes logements'}</a>
+          {estAdmin && <a href="/espace/site" class={actif === 'site' ? 'actif' : ''}><Icone nom="mountain" /> Page d’accueil</a>}
           <a href="/" target="_blank"><Icone nom="eye" /> Voir le site public</a>
         </nav>
         <div class="espace__user">

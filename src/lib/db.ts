@@ -1,7 +1,15 @@
 // Couche d'acces aux donnees (Cloudflare D1).
 // Toutes les requetes publiques se limitent aux logements 'publie'.
 import type { D1Database } from '@cloudflare/workers-types';
-import type { Logement, LogementVignette, Photo, Tarif, Disponibilite } from './types';
+import type { Logement, LogementVignette, Photo, Tarif, Disponibilite, MediaSite } from './types';
+
+// Médias éditoriaux d'un emplacement (ex : 'accueil_hero', 'accueil_galerie').
+export async function getMediasSite(DB: D1Database, emplacement: string): Promise<MediaSite[]> {
+  const { results } = await DB.prepare(
+    `SELECT * FROM medias_site WHERE emplacement = ? ORDER BY ordre ASC`
+  ).bind(emplacement).all<MediaSite>();
+  return results ?? [];
+}
 
 // Liste des logements publies, avec photo de couverture et prix d'appel (vignettes).
 export async function getLogementsPublies(DB: D1Database): Promise<LogementVignette[]> {
