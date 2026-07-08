@@ -11,7 +11,7 @@ export type Lang = keyof typeof languages;
 
 export const ui = {
   fr: {
-    'site.nom': 'Pensée des Alpes',
+    'site.nom': 'Châtel Appartements',
     'site.baseline': 'Locations de vacances à Châtel · Portes du Soleil',
     'nav.accueil': 'Accueil',
     'nav.logements': 'Nos logements',
@@ -19,12 +19,12 @@ export const ui = {
     'nav.contact': 'Contact',
     'nav.reserver': 'Réserver',
 
-    'home.hero.titre': 'Vos vacances à Châtel, en réservation directe',
-    'home.hero.sous_titre': 'Le chalet Pensée des Alpes — à 500 m du télésiège, vue sur les montagnes. Location en direct auprès des propriétaires, sans commission.',
+    'home.hero.titre': 'Vos vacances à Châtel, au pied des Portes du Soleil',
+    'home.hero.sous_titre': 'Chalets et appartements de charme à Châtel, de 50 à 500 m des pistes. Vue montagne, confort et accueil familial.',
     'home.recherche.titre': 'Vérifier les disponibilités',
-    'home.avantages.titre': 'Pourquoi réserver en direct ?',
+    'home.avantages.titre': 'Pourquoi Châtel Appartements ?',
     'home.avantages.1.titre': 'Sans commission',
-    'home.avantages.1.texte': 'Réservation directe auprès des propriétaires : pas de frais de plateforme.',
+    'home.avantages.1.texte': 'Vous réservez directement auprès des propriétaires, sans frais de plateforme.',
     'home.avantages.2.titre': 'Au pied des pistes',
     'home.avantages.2.texte': 'À 500 m du télésiège de la Barbossine, accès au domaine des Portes du Soleil.',
     'home.avantages.3.titre': 'Un accueil familial',

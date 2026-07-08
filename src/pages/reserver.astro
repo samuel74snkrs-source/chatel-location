@@ -28,7 +28,7 @@ if (logement?.superhote_property_key) {
 
 const titre = logement ? `Réserver — ${logement.nom}` : 'Réserver';
 ---
-<Base titre={titre} description="Réservez en direct votre séjour à Châtel, sans commission." noindex>
+<Base titre={titre} description="Réservez votre séjour à Châtel — chalets et appartements au pied des pistes." noindex>
   <section class="section">
     <div class="conteneur">
       <p class="note" style="margin:0"><a href={logement ? `/logements/${logement.slug}` : '/logements'}>← Retour</a></p>

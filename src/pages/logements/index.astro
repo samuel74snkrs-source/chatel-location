@@ -35,7 +35,7 @@ const logements = rechercheValide
   ? await rechercherDisponibles(DB, arrivee, depart, personnes)
   : await getToutesVignettes(DB);
 
-const description = 'Tous nos logements de vacances à Châtel : chalets Pensée des Alpes et L’Étrye, de 7 à 10 personnes, à 50–500 m des pistes. Réservation directe sans commission.';
+const description = 'Tous nos logements de vacances à Châtel : chalets Pensée des Alpes et L’Étrye, de 7 à 10 personnes, à 50–500 m des pistes.';
 ---
 <Base titre={t('liste.titre')} description={description}>
   <section class="section--bois" style="padding:2rem 0">

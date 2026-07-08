@@ -23,13 +23,13 @@ const heroImg = heroMedias[0]
   ? urlPhoto(heroMedias[0].url_r2)
   : urlPhoto(logements.find((l) => l.statut === 'publie')?.couverture);
 
-const description = 'Location de vacances à Châtel (Portes du Soleil) en réservation directe : chalet Pensée des Alpes, appartements 7 à 10 personnes à 500 m du télésiège. Sans commission.';
+const description = 'Location de vacances à Châtel (Portes du Soleil) : chalets et appartements de 7 à 10 personnes, à 50–500 m des pistes. Vue montagne, accueil familial.';
 
 // Donnees structurees Schema.org pour l'hebergeur (page d'accueil).
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'LodgingBusiness',
-  name: 'Pensée des Alpes',
+  name: 'Châtel Appartements',
   description,
   url: Astro.site?.href,
   address: {
@@ -43,7 +43,7 @@ const jsonLd = {
   priceRange: '€€',
 };
 ---
-<Base titre="Location à Châtel en direct" description={description} jsonLd={jsonLd}>
+<Base titre="Location de vacances à Châtel" description={description} jsonLd={jsonLd}>
   <section class="hero">
     <div class="hero__bg"><img src={heroImg} alt="" /></div>
     <div class="hero__voile"></div>
