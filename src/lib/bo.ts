@@ -34,6 +34,7 @@ export interface MajLogement {
   description_longue: string;
   adresse: string;
   numero_enregistrement_meuble: string;
+  superhote_property_key: string;
   equipements: string[];
   statut: 'brouillon' | 'publie' | 'masque';
 }
@@ -43,13 +44,23 @@ export async function mettreAJourLogement(DB: D1Database, id: number, d: MajLoge
     `UPDATE logements SET
        nom = ?, type = ?, capacite_max = ?, nb_chambres = ?, nb_sdb = ?, surface_m2 = ?,
        description_courte = ?, description_longue = ?, adresse = ?,
-       numero_enregistrement_meuble = ?, equipements = ?, statut = ?, date_maj = datetime('now')
+       numero_enregistrement_meuble = ?, superhote_property_key = ?,
+       equipements = ?, statut = ?, date_maj = datetime('now')
      WHERE id = ?`
   ).bind(
     d.nom, d.type, d.capacite_max, d.nb_chambres, d.nb_sdb, d.surface_m2,
     d.description_courte, d.description_longue, d.adresse,
-    d.numero_enregistrement_meuble, JSON.stringify(d.equipements), d.statut, id
+    d.numero_enregistrement_meuble, d.superhote_property_key || null,
+    JSON.stringify(d.equipements), d.statut, id
   ).run();
+}
+
+// Paramètre général du site (upsert).
+export async function setParametre(DB: D1Database, cle: string, valeur: string): Promise<void> {
+  await DB.prepare(
+    `INSERT INTO parametres (cle, valeur) VALUES (?, ?)
+     ON CONFLICT(cle) DO UPDATE SET valeur = excluded.valeur`
+  ).bind(cle, valeur).run();
 }
 
 // Charte qualité (cahier §6.7) : champs requis avant publication.

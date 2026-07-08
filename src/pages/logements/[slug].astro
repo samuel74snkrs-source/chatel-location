@@ -165,7 +165,7 @@ const jsonLd = {
           {logement.numero_enregistrement_meuble && (
             <p class="note">{t('fiche.numero_meuble')} : <strong>{logement.numero_enregistrement_meuble}</strong></p>
           )}
-          <a href={`/contact?logement=${logement.slug}`} class="btn btn--primaire btn--bloc" style="margin-top:.8rem">
+          <a href={`/reserver?logement=${logement.slug}`} class="btn btn--primaire btn--bloc" style="margin-top:.8rem">
             {t('fiche.reserver')}
           </a>
           <p class="note" style="margin-top:.8rem">{t('contact.note_acompte')}</p>

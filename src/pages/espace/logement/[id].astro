@@ -33,6 +33,7 @@ if (Astro.request.method === 'POST') {
     description_longue: String(f.get('description_longue') ?? '').trim(),
     adresse: String(f.get('adresse') ?? '').trim(),
     numero_enregistrement_meuble: String(f.get('numero_enregistrement_meuble') ?? '').trim(),
+    superhote_property_key: String(f.get('superhote_property_key') ?? '').trim(),
     equipements,
     statut,
   };
@@ -127,6 +128,12 @@ const equipActuels = new Set(parseEquipements(logement!.equipements));
     <div>
       <label for="numero_enregistrement_meuble">N° d’enregistrement meublé de tourisme</label>
       <input type="text" id="numero_enregistrement_meuble" name="numero_enregistrement_meuble" value={logement!.numero_enregistrement_meuble ?? ''} />
+    </div>
+
+    <div>
+      <label for="superhote_property_key">Clé SuperHôte du bien (PropertyKey)</label>
+      <input type="text" id="superhote_property_key" name="superhote_property_key" value={logement!.superhote_property_key ?? ''} placeholder="ex. abcd1234…" />
+      <p class="note" style="margin:.3rem 0 0">Reliez ce logement à SuperHôte : le bouton « Réserver » ouvrira le moteur de réservation de ce bien. Laisser vide tant que non configuré.</p>
     </div>
 
     <div>

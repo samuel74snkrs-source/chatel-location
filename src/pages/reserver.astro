@@ -1,0 +1,64 @@
+---
+import Base from '../layouts/Base.astro';
+import { getLogementBySlug, getParametre } from '../lib/db';
+
+const DB = Astro.locals.runtime.env.DB;
+const params = Astro.url.searchParams;
+const slug = params.get('logement') ?? '';
+const arrivee = params.get('arrivee') ?? '';
+const depart = params.get('depart') ?? '';
+const personnes = params.get('personnes') ?? '';
+
+const logement = slug ? await getLogementBySlug(DB, slug) : null;
+const webkey = await getParametre(DB, 'superhote_webkey');
+
+// Construit l'URL du moteur SuperHôte :
+//  - bien précis si le logement a une PropertyKey ;
+//  - sinon moteur global (tous les biens) si une Webkey est configurée.
+let iframeSrc: string | null = null;
+if (logement?.superhote_property_key) {
+  iframeSrc = `https://app.superhote.com/#/rental/${encodeURIComponent(logement.superhote_property_key)}?lang=fr`;
+} else if (webkey) {
+  const qs = new URLSearchParams({ lang: 'fr' });
+  if (arrivee) qs.set('startDate', arrivee);
+  if (depart) qs.set('endDate', depart);
+  if (personnes) qs.set('adultsNumber', personnes);
+  iframeSrc = `https://app.superhote.com/#/get-available-rentals/${encodeURIComponent(webkey)}?${qs.toString()}`;
+}
+
+const titre = logement ? `Réserver — ${logement.nom}` : 'Réserver';
+---
+<Base titre={titre} description="Réservez en direct votre séjour à Châtel, sans commission." noindex>
+  <section class="section">
+    <div class="conteneur">
+      <p class="note" style="margin:0"><a href={logement ? `/logements/${logement.slug}` : '/logements'}>← Retour</a></p>
+      <h1>{logement ? `Réserver — ${logement.nom}` : 'Réserver votre séjour'}</h1>
+
+      {iframeSrc ? (
+        <>
+          <p class="note">Disponibilités en temps réel et paiement sécurisé via notre partenaire de réservation.</p>
+          <div style="margin-top:1rem;border:1px solid var(--bordure);border-radius:var(--rayon);overflow:hidden;background:#fff">
+            <iframe
+              id="bookingengine"
+              src={iframeSrc}
+              width="100%"
+              height="2400"
+              frameborder="0"
+              allowfullscreen
+              sandbox="allow-scripts allow-forms allow-same-origin allow-presentation allow-top-navigation"
+              style="display:block;border:0"
+              title="Moteur de réservation"
+            ></iframe>
+          </div>
+        </>
+      ) : (
+        <div class="alerte" style="margin-top:1rem">
+          <strong>Réservation en ligne bientôt disponible.</strong><br />
+          En attendant, envoyez-nous votre demande via le
+          <a href={`/contact${logement ? `?logement=${logement.slug}` : ''}`}> formulaire de contact</a>,
+          nous revenons vers vous rapidement.
+        </div>
+      )}
+    </div>
+  </section>
+</Base>

@@ -3,6 +3,12 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import type { Logement, LogementVignette, Photo, Tarif, Disponibilite, MediaSite } from './types';
 
+// Paramètre général du site (ex : 'superhote_webkey'). null si absent.
+export async function getParametre(DB: D1Database, cle: string): Promise<string | null> {
+  const row = await DB.prepare(`SELECT valeur FROM parametres WHERE cle = ?`).bind(cle).first<{ valeur: string }>();
+  return row?.valeur ?? null;
+}
+
 // Médias éditoriaux d'un emplacement (ex : 'accueil_hero', 'accueil_galerie').
 export async function getMediasSite(DB: D1Database, emplacement: string): Promise<MediaSite[]> {
   const { results } = await DB.prepare(

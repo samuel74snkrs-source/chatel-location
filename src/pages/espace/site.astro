@@ -1,7 +1,7 @@
 ---
 import Espace from '../../layouts/Espace.astro';
-import { getMediasSite } from '../../lib/db';
-import { ajouterMediaSite, supprimerMediaSite } from '../../lib/bo';
+import { getMediasSite, getParametre } from '../../lib/db';
+import { ajouterMediaSite, supprimerMediaSite, setParametre } from '../../lib/bo';
 import { urlPhoto } from '../../lib/format';
 
 const user = Astro.locals.user!;
@@ -27,11 +27,17 @@ async function televerser(file: File, emplacement: string, alt: string): Promise
   return true;
 }
 
-if (Astro.request.method === 'POST' && r2Actif) {
+if (Astro.request.method === 'POST') {
   const f = await Astro.request.formData();
   const action = String(f.get('action') ?? '');
 
-  if (action === 'supprimer') {
+  // Réglage SuperHôte (ne nécessite pas R2).
+  if (action === 'webkey') {
+    await setParametre(DB, 'superhote_webkey', String(f.get('webkey') ?? '').trim());
+    flash = { type: 'ok', msg: 'Clé SuperHôte (Webkey) enregistrée.' };
+  } else if (!r2Actif) {
+    flash = { type: 'err', msg: 'Le stockage R2 n’est pas activé.' };
+  } else if (action === 'supprimer') {
     const cle = await supprimerMediaSite(DB, Number(f.get('media_id')));
     if (cle && !cle.startsWith('/')) await env.PHOTOS!.delete(cle);
     flash = { type: 'ok', msg: 'Image supprimée.' };
@@ -57,6 +63,7 @@ if (Astro.request.method === 'POST' && r2Actif) {
 
 const hero = r2Actif ? await getMediasSite(DB, 'accueil_hero') : [];
 const galerie = r2Actif ? await getMediasSite(DB, 'accueil_galerie') : [];
+const webkey = await getParametre(DB, 'superhote_webkey') ?? '';
 ---
 <Espace titre="Page d'accueil" actif="site">
   <h1>Photos de la page d’accueil</h1>
@@ -64,6 +71,18 @@ const galerie = r2Actif ? await getMediasSite(DB, 'accueil_galerie') : [];
 
   {flash && <div class={`flash flash--${flash.type}`}>{flash.msg}</div>}
 
+  <h2 style="font-size:1.3rem;margin-top:0">Réservation — SuperHôte</h2>
+  <p class="note" style="margin-top:0">Clé « Webkey » de ton compte SuperHôte (Réglages → Profil utilisateur). Elle active le moteur de réservation global. La clé de chaque bien (PropertyKey) se renseigne dans la fiche du logement.</p>
+  <form method="POST" class="bo-form" style="margin-bottom:2.5rem">
+    <input type="hidden" name="action" value="webkey" />
+    <div>
+      <label for="webkey">Webkey SuperHôte</label>
+      <input type="text" id="webkey" name="webkey" value={webkey} placeholder="colle ici ta Webkey SuperHôte" />
+    </div>
+    <button type="submit" class="btn btn--sapin">Enregistrer</button>
+  </form>
+
+  <h2 style="font-size:1.3rem">Photos de la page d’accueil</h2>
   {!r2Actif ? (
     <div class="flash flash--err">Le stockage R2 n’est pas activé : impossible de gérer les images pour l’instant.</div>
   ) : (

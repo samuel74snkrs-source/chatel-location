@@ -18,6 +18,7 @@ export interface Logement {
   altitude: number | null;
   equipements: string | null; // JSON
   numero_enregistrement_meuble: string | null;
+  superhote_property_key: string | null;
   statut: 'brouillon' | 'publie' | 'masque';
   date_creation: string;
   date_maj: string;
