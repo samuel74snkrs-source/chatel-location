@@ -32,6 +32,16 @@ export const ui = {
     'home.logements.titre': 'Nos logements',
     'home.logements.voir_tout': 'Voir tous les logements',
 
+    'home.saisons.titre': 'Été comme hiver, au cœur des Portes du Soleil',
+    'home.saisons.sous_titre': 'Un même chalet, deux saisons à vivre au pied des montagnes.',
+    'home.saisons.hiver.tag': 'Hiver · Ski',
+    'home.saisons.hiver.titre': 'Ski au pied des pistes',
+    'home.saisons.hiver.texte': 'À 50–500 m des télésièges, accès direct aux 600 km des Portes du Soleil (12 stations franco-suisses). Casier à skis, navette gratuite.',
+    'home.saisons.ete.tag': 'Été · Nature',
+    'home.saisons.ete.titre': 'Randonnée, VTT & alpages',
+    'home.saisons.ete.texte': 'Sentiers au départ du chalet, Bike Park des Portes du Soleil, lac et grands espaces verts. Le calme de la montagne en famille.',
+    'home.saisons.cta': 'Découvrir Châtel',
+
     'search.arrivee': 'Arrivée',
     'search.depart': 'Départ',
     'search.personnes': 'Voyageurs',

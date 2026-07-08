@@ -82,6 +82,35 @@ const jsonLd = {
     </div>
   </section>
 
+  <section class="section">
+    <div class="conteneur">
+      <div class="titre-section">
+        <h2>{t('home.saisons.titre')}</h2>
+        <p>{t('home.saisons.sous_titre')}</p>
+      </div>
+      <div class="saisons reveal">
+        <article class="saison saison--hiver">
+          <div class="saison__img"><img src="/images/saison-hiver.svg" alt="Châtel en hiver, ski aux Portes du Soleil" loading="lazy" /></div>
+          <div class="saison__corps">
+            <span class="saison__tag"><Icone nom="ski" /> {t('home.saisons.hiver.tag')}</span>
+            <h3>{t('home.saisons.hiver.titre')}</h3>
+            <p>{t('home.saisons.hiver.texte')}</p>
+            <a href="/station" class="btn btn--contour">{t('home.saisons.cta')}</a>
+          </div>
+        </article>
+        <article class="saison saison--ete">
+          <div class="saison__img"><img src="/images/saison-ete.svg" alt="Châtel en été, randonnée et alpages" loading="lazy" /></div>
+          <div class="saison__corps">
+            <span class="saison__tag"><Icone nom="mountain" /> {t('home.saisons.ete.tag')}</span>
+            <h3>{t('home.saisons.ete.titre')}</h3>
+            <p>{t('home.saisons.ete.texte')}</p>
+            <a href="/station" class="btn btn--contour">{t('home.saisons.cta')}</a>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
   <section class="section section--bois">
     <div class="conteneur">
       <div class="titre-section">
