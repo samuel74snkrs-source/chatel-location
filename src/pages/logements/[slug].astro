@@ -3,9 +3,9 @@ import Base from '../../layouts/Base.astro';
 import Icone from '../../components/Icone.astro';
 import Calendar from '../../components/Calendar.astro';
 import Carousel from '../../components/Carousel.astro';
-import { getLogementBySlug, getPhotos, getTarifs, getOccupations } from '../../lib/db';
+import { getLogementBySlug, getPhotos, getOccupations } from '../../lib/db';
 import { useTranslations, type Lang, ui } from '../../i18n/ui';
-import { prixEuro, parseEquipements, urlPhoto } from '../../lib/format';
+import { parseEquipements, urlPhoto } from '../../lib/format';
 
 const lang = (Astro.currentLocale as Lang) ?? 'fr';
 const t = useTranslations(lang);
@@ -19,15 +19,13 @@ if (!logement || logement.statut === 'masque') {
   return new Response(null, { status: 404, statusText: 'Logement introuvable' });
 }
 
-const [photos, tarifs, occupations] = await Promise.all([
+const [photos, occupations] = await Promise.all([
   getPhotos(DB, logement.id),
-  getTarifs(DB, logement.id),
   getOccupations(DB, logement.id),
 ]);
 
 const equipements = parseEquipements(logement.equipements);
 const brouillon = logement.statut === 'brouillon';
-const tarifIndicatif = tarifs.some((tf) => tf.nom_periode.toLowerCase().includes('indicatif'));
 
 // Icone associee a chaque code d'equipement.
 const iconeEquip: Record<string, string> = {
@@ -110,33 +108,6 @@ const jsonLd = {
           </section>
         )}
 
-        {tarifs.length > 0 && (
-          <section style="margin-top:1.5rem">
-            <h2>{t('fiche.tarifs')}</h2>
-            {tarifIndicatif && <p class="note">⚠️ {t('fiche.tarifs_indicatifs')}</p>}
-            <table class="tableau">
-              <thead>
-                <tr>
-                  <th>{t('fiche.periode')}</th>
-                  <th>{t('fiche.semaine')}</th>
-                  <th>{t('fiche.nuit')}</th>
-                  <th>{t('fiche.nuits_min')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tarifs.map((tf) => (
-                  <tr>
-                    <td>{tf.nom_periode}</td>
-                    <td class="prix">{prixEuro(tf.prix_semaine)}</td>
-                    <td>{prixEuro(tf.prix_nuit)}</td>
-                    <td>{tf.nuits_minimum}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
-        )}
-
         <section style="margin-top:1.8rem">
           <h2>{t('fiche.calendrier')}</h2>
           <Calendar occupations={occupations} />
@@ -156,19 +127,14 @@ const jsonLd = {
 
       <aside>
         <div class="encadre encadre--sticky">
-          {tarifs[0]?.prix_semaine && (
-            <p style="margin:0 0 .5rem">
-              <strong style="font-size:1.5rem;color:var(--bois-fonce)">{`${t('liste.a_partir_de')} ${prixEuro(Math.min(...tarifs.map((tf) => tf.prix_semaine ?? Infinity)))}`}</strong>
-              <span class="note"> {t('liste.par_semaine')}</span>
-            </p>
-          )}
+          <p style="margin:0 0 .3rem;font-family:var(--police-titre);font-size:1.2rem;color:var(--sapin)">Réserver ce logement</p>
+          <p class="note" style="margin:0 0 .8rem">Disponibilités et tarifs en temps réel lors de la réservation.</p>
           {logement.numero_enregistrement_meuble && (
             <p class="note">{t('fiche.numero_meuble')} : <strong>{logement.numero_enregistrement_meuble}</strong></p>
           )}
-          <a href={`/reserver?logement=${logement.slug}`} class="btn btn--primaire btn--bloc" style="margin-top:.8rem">
+          <a href={`/reserver?logement=${logement.slug}`} class="btn btn--primaire btn--bloc" style="margin-top:.4rem">
             {t('fiche.reserver')}
           </a>
-          <p class="note" style="margin-top:.8rem">{t('contact.note_acompte')}</p>
         </div>
       </aside>
     </div>

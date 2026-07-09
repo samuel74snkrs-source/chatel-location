@@ -1,7 +1,7 @@
 ---
 import Icone from './Icone.astro';
 import { useTranslations, type Lang } from '../i18n/ui';
-import { prixEuro, urlPhoto } from '../lib/format';
+import { urlPhoto } from '../lib/format';
 import type { LogementVignette } from '../lib/types';
 
 interface Props { logement: LogementVignette; }
@@ -25,11 +25,6 @@ const brouillon = l.statut === 'brouillon';
       {l.surface_m2 && <span><Icone nom="ruler" /> {l.surface_m2} m²</span>}
     </div>
     {l.description_courte && <p style="margin:.2rem 0;color:var(--texte-doux);font-size:.95rem">{l.description_courte}</p>}
-    <div class="carte__prix">
-      {l.prix_min_semaine
-        ? <>{`${t('liste.a_partir_de')} ${prixEuro(l.prix_min_semaine)} `}<small>{t('liste.par_semaine')}</small></>
-        : <small>{t('fiche.brouillon')}</small>}
-    </div>
-    <a href={`/logements/${l.slug}`} class="btn btn--primaire btn--bloc" style="margin-top:.4rem">{t('liste.voir')}</a>
+    <a href={`/logements/${l.slug}`} class="btn btn--primaire btn--bloc" style="margin-top:auto">{t('liste.voir')}</a>
   </div>
 </article>
