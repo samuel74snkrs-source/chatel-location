@@ -3,6 +3,7 @@ import '../styles/global.css';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import { useTranslations, type Lang } from '../i18n/ui';
+import { saisonParDefaut } from '../lib/saison';
 
 interface Props {
   titre: string;
@@ -20,11 +21,22 @@ const t = useTranslations(lang);
 const canonical = new URL(Astro.url.pathname, Astro.site).href;
 const ogImage = image ? new URL(image, Astro.site).href : new URL('/images/og-default.svg', Astro.site).href;
 const titreComplet = `${titre} · ${t('site.nom')}`;
+
+// Saison servie par defaut (selon le mois). Le script en-tete la remplace
+// aussitot par le choix memorise du visiteur : sans JS, on garde celle-ci.
+const saison = saisonParDefaut();
 ---
 <!doctype html>
-<html lang={lang}>
+<html lang={lang} data-saison={saison}>
   <head>
     <meta charset="utf-8" />
+    <script is:inline>
+      // Restaure la saison choisie avant le premier rendu (pas de flash).
+      try {
+        var s = localStorage.getItem('chatel-saison');
+        if (s === 'hiver' || s === 'ete') document.documentElement.setAttribute('data-saison', s);
+      } catch (e) {}
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{titreComplet}</title>
     <meta name="description" content={description} />
@@ -40,7 +52,7 @@ const titreComplet = `${titre} · ${t('site.nom')}`;
     <meta property="og:locale" content={lang === 'fr' ? 'fr_FR' : 'en_GB'} />
     <meta name="twitter:card" content="summary_large_image" />
 
-    <meta name="theme-color" content="#1f4434" />
+    <meta name="theme-color" content="#22503c" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
     <!-- Polices : Fraunces (titres, serif chaleureux) + Inter (corps) -->
@@ -59,6 +71,94 @@ const titreComplet = `${titre} · ${t('site.nom')}`;
       <slot />
     </main>
     <Footer />
+
+    <script>
+      // Curseur Hiver ⇄ Été : un seul attribut sur <html> pilote toute la page.
+      const LIBELLES: Record<string, string> = { hiver: 'Hiver', ete: 'Été' };
+
+      const appliquer = (saison: string) => {
+        if (!LIBELLES[saison]) return;
+        document.documentElement.dataset.saison = saison;
+        document.querySelectorAll('[data-pouce]').forEach((p) => {
+          p.setAttribute('aria-valuenow', saison === 'ete' ? '1' : '0');
+          p.setAttribute('aria-valuetext', LIBELLES[saison]);
+        });
+        try { localStorage.setItem('chatel-saison', saison); } catch (e) {}
+        // Les blocs de l'autre saison étaient masqués : l'observateur d'apparition
+        // ne les a jamais vus passer. On les révèle donc directement.
+        document.querySelectorAll('.reveal').forEach((el) => el.classList.add('is-visible'));
+        document.dispatchEvent(new CustomEvent('saisonchange', { detail: saison }));
+      };
+
+      appliquer(document.documentElement.dataset.saison ?? 'hiver');
+
+      document.querySelectorAll<HTMLElement>('[data-curseur]').forEach((curseur) => {
+        const piste = curseur.querySelector<HTMLElement>('[data-piste]');
+        const pouce = curseur.querySelector<HTMLElement>('[data-pouce]');
+        if (!piste || !pouce) return;
+
+        // Course réelle du pouce : la largeur de la piste moins le pouce et
+        // ses deux marges. Recalculée à chaque geste (la piste rétrécit en
+        // affichage compact).
+        const geometrie = () => {
+          const marge = parseFloat(getComputedStyle(pouce).left) || 0;
+          return {
+            gauche: piste.getBoundingClientRect().left,
+            marge,
+            course: piste.clientWidth - pouce.offsetWidth - 2 * marge,
+          };
+        };
+
+        const suivre = (x: number) => {
+          const { gauche, marge, course } = geometrie();
+          if (course <= 0) return;
+          // On raisonne sur le centre du pouce, d'où la demi-largeur retranchée.
+          const t = Math.min(1, Math.max(0, (x - gauche - marge - pouce.offsetWidth / 2) / course));
+          pouce.style.setProperty('--pos', t * course + 'px');
+          // La page bascule dès la moitié franchie : on voit le site changer
+          // pendant le geste, avant même de relâcher.
+          const voulue = t >= 0.5 ? 'ete' : 'hiver';
+          if (voulue !== document.documentElement.dataset.saison) appliquer(voulue);
+        };
+
+        let glisse = false;
+        piste.addEventListener('pointerdown', (e) => {
+          glisse = true;
+          curseur.dataset.glisse = '';
+          // Capture : le geste continue même si le doigt sort de la piste.
+          try { piste.setPointerCapture(e.pointerId); } catch (err) {}
+          suivre(e.clientX);
+        });
+        piste.addEventListener('pointermove', (e) => { if (glisse) suivre(e.clientX); });
+
+        const relacher = () => {
+          if (!glisse) return;
+          glisse = false;
+          delete curseur.dataset.glisse;
+          // On rend la main au CSS : le pouce rejoint le bout de la saison retenue.
+          pouce.style.removeProperty('--pos');
+        };
+        piste.addEventListener('pointerup', relacher);
+        piste.addEventListener('pointercancel', relacher);
+
+        // Clavier : flèches, Origine/Fin, et Espace/Entrée pour alterner.
+        pouce.addEventListener('keydown', (e) => {
+          const versHiver = ['ArrowLeft', 'ArrowDown', 'Home'];
+          const versEte = ['ArrowRight', 'ArrowUp', 'End'];
+          if (versHiver.includes(e.key)) { e.preventDefault(); appliquer('hiver'); }
+          else if (versEte.includes(e.key)) { e.preventDefault(); appliquer('ete'); }
+          else if (e.key === ' ' || e.key === 'Enter') {
+            e.preventDefault();
+            appliquer(document.documentElement.dataset.saison === 'ete' ? 'hiver' : 'ete');
+          }
+        });
+
+        // Les libellés de chaque extrémité servent de raccourci.
+        curseur.querySelectorAll<HTMLElement>('[data-saison-bout]').forEach((b) => {
+          b.addEventListener('click', () => appliquer(b.dataset.saisonBout ?? 'hiver'));
+        });
+      });
+    </script>
 
     <script>
       // Apparition douce des éléments .reveal au scroll.

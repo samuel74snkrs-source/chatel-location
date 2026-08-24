@@ -2,7 +2,9 @@
 import Base from '../../layouts/Base.astro';
 import SearchBar from '../../components/SearchBar.astro';
 import LogementCard from '../../components/LogementCard.astro';
-import { getToutesVignettes, rechercherDisponibles } from '../../lib/db';
+import Icone from '../../components/Icone.astro';
+import { getToutesVignettes, rechercherDisponibles, getPrixNuitParSaison } from '../../lib/db';
+import { fenetreSaison } from '../../lib/saison';
 import { useTranslations, type Lang } from '../../i18n/ui';
 import { dateCourte } from '../../lib/format';
 import { rythmePourDate, validerSejour, nbNuits } from '../../lib/sejour';
@@ -35,15 +37,30 @@ const logements = rechercheValide
   ? await rechercherDisponibles(DB, arrivee, depart, personnes)
   : await getToutesVignettes(DB);
 
+// Prix d'appel par nuit, pour chaque saison : la carte affiche celui de la
+// saison choisie dans l'en-tête (rien si aucun tarif n'est saisi).
+const fenetres = { hiver: fenetreSaison('hiver'), ete: fenetreSaison('ete') };
+const [prixHiver, prixEte] = await Promise.all([
+  getPrixNuitParSaison(DB, fenetres.hiver.debut, fenetres.hiver.fin),
+  getPrixNuitParSaison(DB, fenetres.ete.debut, fenetres.ete.fin),
+]);
+const prixParSaison = (id: number) => ({ hiver: prixHiver.get(id) ?? null, ete: prixEte.get(id) ?? null });
+
 const description = 'Tous nos logements de vacances à Châtel : chalets Pensée des Alpes et L’Étrye, de 7 à 10 personnes, à 50–500 m des pistes.';
 ---
 <Base titre={t('liste.titre')} description={description}>
-  <section class="section--bois" style="padding:2rem 0">
+  <section class="section--bois section--serre">
     <div class="conteneur">
-      <h1 style="margin:.2rem 0 .4rem">Réserver — nos logements à Châtel</h1>
-      <p class="note" style="margin:0 0 1.2rem">Choisissez vos dates et le nombre de voyageurs : seuls les logements disponibles s’affichent.</p>
+      <span class="surtitre">{t('site.lieu')}</span>
+      <h1 style="margin:0 0 .5rem">Nos logements à Châtel</h1>
+      <p style="max-width:60ch;color:var(--texte-doux);margin:0 0 1.6rem">
+        Choisissez vos dates et le nombre de voyageurs : seuls les logements disponibles s’affichent.
+      </p>
       <SearchBar arrivee={arrivee} depart={depart} personnes={personnes} />
-      <p class="note" style="margin:.8rem 0 0">🗓️ En haute saison (vacances scolaires, été), les séjours se font <strong>du samedi au samedi</strong>. En entre-saison, les dates sont libres.</p>
+      <p class="note" style="margin:1rem 0 0;display:flex;align-items:flex-start;gap:.5rem">
+        <Icone nom="calendar" />
+        <span>En haute saison (vacances scolaires, été), les séjours se font <strong>du samedi au samedi</strong>. En entre-saison, les dates sont libres.</span>
+      </p>
     </div>
   </section>
 
@@ -63,7 +80,7 @@ const description = 'Tous nos logements de vacances à Châtel : chalets Pensée
 
       {rechercheValide && logements.length === 0
         ? <div class="alerte">{t('search.aucun')}</div>
-        : <div class="grille">{logements.map((l) => <LogementCard logement={l} />)}</div>}
+        : <div class="grille">{logements.map((l) => <LogementCard logement={l} prixParSaison={prixParSaison(l.id)} />)}</div>}
     </div>
   </section>
 </Base>

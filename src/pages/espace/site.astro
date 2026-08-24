@@ -13,6 +13,8 @@ const DB = env.DB;
 const r2Actif = !!env.PHOTOS;
 
 let flash: { type: 'ok' | 'err'; msg: string } | null = null;
+// Suffixes d'emplacement autorises : rien d'autre ne peut etre cree via le formulaire.
+const SUFFIXES = ['', '_hiver', '_ete'];
 const MAX_TAILLE = 12 * 1024 * 1024;
 const extDepuisType: Record<string, string> = {
   'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/avif': 'avif', 'image/gif': 'gif',
@@ -41,28 +43,47 @@ if (Astro.request.method === 'POST') {
     const cle = await supprimerMediaSite(DB, Number(f.get('media_id')));
     if (cle && !cle.startsWith('/')) await env.PHOTOS!.delete(cle);
     flash = { type: 'ok', msg: 'Image supprimée.' };
-  } else if (action === 'hero') {
-    const file = f.get('image');
-    if (file instanceof File && file.size > 0) {
-      // Le hero est unique : on remplace l'existant.
-      for (const m of await getMediasSite(DB, 'accueil_hero')) {
-        const cle = await supprimerMediaSite(DB, m.id);
-        if (cle && !cle.startsWith('/')) await env.PHOTOS!.delete(cle);
+  } else if (action === 'hero' || action === 'galerie') {
+    // L'emplacement dépend de la saison choisie dans le formulaire.
+    const suffixe = String(f.get('saison') ?? '');
+    const emplacement = `accueil_${action}${suffixe && SUFFIXES.includes(suffixe) ? suffixe : ''}`;
+
+    if (action === 'hero') {
+      const file = f.get('image');
+      if (file instanceof File && file.size > 0) {
+        // Le hero est unique par emplacement : on remplace l'existant.
+        for (const m of await getMediasSite(DB, emplacement)) {
+          const cle = await supprimerMediaSite(DB, m.id);
+          if (cle && !cle.startsWith('/')) await env.PHOTOS!.delete(cle);
+        }
+        flash = (await televerser(file, emplacement, String(f.get('alt') ?? 'Vue de Châtel')))
+          ? { type: 'ok', msg: 'Image d’accueil mise à jour.' }
+          : { type: 'err', msg: 'Format non supporté ou fichier trop lourd (12 Mo max).' };
       }
-      flash = (await televerser(file, 'accueil_hero', String(f.get('alt') ?? 'Vue de Châtel')))
-        ? { type: 'ok', msg: 'Image d’accueil mise à jour.' }
-        : { type: 'err', msg: 'Format non supporté ou fichier trop lourd (12 Mo max).' };
+    } else {
+      const fichiers = f.getAll('images').filter((x): x is File => x instanceof File && x.size > 0);
+      let n = 0;
+      for (const file of fichiers) if (await televerser(file, emplacement, String(f.get('alt') ?? ''))) n++;
+      flash = n > 0 ? { type: 'ok', msg: `${n} image(s) ajoutée(s) à la galerie.` } : { type: 'err', msg: 'Aucune image valide.' };
     }
-  } else if (action === 'galerie') {
-    const fichiers = f.getAll('images').filter((x): x is File => x instanceof File && x.size > 0);
-    let n = 0;
-    for (const file of fichiers) if (await televerser(file, 'accueil_galerie', String(f.get('alt') ?? ''))) n++;
-    flash = n > 0 ? { type: 'ok', msg: `${n} image(s) ajoutée(s) à la galerie.` } : { type: 'err', msg: 'Aucune image valide.' };
   }
 }
 
-const hero = r2Actif ? await getMediasSite(DB, 'accueil_hero') : [];
-const galerie = r2Actif ? await getMediasSite(DB, 'accueil_galerie') : [];
+// Trois jeux d'images : un générique (utilisé en repli) et un par saison.
+// Le site bascule automatiquement sur le jeu de la saison affichée.
+const jeux = [
+  { suffixe: '', titre: 'Par défaut (toutes saisons)', aide: 'Utilisé tant qu’aucune photo saisonnière n’est chargée.' },
+  { suffixe: '_hiver', titre: 'Hiver', aide: 'Affiché quand le visiteur choisit « Hiver ».' },
+  { suffixe: '_ete', titre: 'Été', aide: 'Affiché quand le visiteur choisit « Été ».' },
+];
+
+const medias = r2Actif
+  ? await Promise.all(jeux.map(async (j) => ({
+      ...j,
+      hero: await getMediasSite(DB, `accueil_hero${j.suffixe}`),
+      galerie: await getMediasSite(DB, `accueil_galerie${j.suffixe}`),
+    })))
+  : [];
 const webkey = await getParametre(DB, 'superhote_webkey') ?? '';
 ---
 <Espace titre="Page d'accueil" actif="site">
@@ -87,52 +108,60 @@ const webkey = await getParametre(DB, 'superhote_webkey') ?? '';
     <div class="flash flash--err">Le stockage R2 n’est pas activé : impossible de gérer les images pour l’instant.</div>
   ) : (
     <>
-      <h2 style="font-size:1.3rem">Image principale (hero)</h2>
-      <p class="note" style="margin-top:0">Grande image en haut de la page d’accueil. À défaut, la photo de couverture d’un logement publié est utilisée.</p>
-      {hero[0] && (
-        <div class="bo-carte" style="padding:0;overflow:hidden;max-width:420px;margin-bottom:1rem">
-          <img src={urlPhoto(hero[0].url_r2)} alt={hero[0].texte_alt ?? ''} style="width:100%;aspect-ratio:16/9;object-fit:cover" />
-          <div style="padding:.8rem">
-            <form method="POST" onsubmit="return confirm('Supprimer l’image d’accueil ?')">
-              <input type="hidden" name="action" value="supprimer" />
-              <input type="hidden" name="media_id" value={hero[0].id} />
-              <button class="btn btn--danger btn--sm">Supprimer</button>
-            </form>
-          </div>
-        </div>
-      )}
-      <form method="POST" enctype="multipart/form-data" class="bo-form" style="margin-bottom:2.5rem">
-        <input type="hidden" name="action" value="hero" />
-        <div><label for="hero_image">{hero[0] ? 'Remplacer l’image' : 'Choisir l’image'} (JPG, PNG, WebP — 12 Mo max)</label>
-          <input type="file" id="hero_image" name="image" accept="image/*" required /></div>
-        <div><label for="hero_alt">Description</label>
-          <input type="text" id="hero_alt" name="alt" placeholder="Le chalet et les montagnes de Châtel" /></div>
-        <button type="submit" class="btn btn--sapin">Enregistrer l’image d’accueil</button>
-      </form>
+      {medias.map((jeu) => (
+        <section style="margin-bottom:3rem">
+          <h2 style="font-size:1.3rem">{jeu.titre}</h2>
+          <p class="note" style="margin-top:0">{jeu.aide}</p>
 
-      <h2 style="font-size:1.3rem">Galerie d’accueil (optionnelle)</h2>
-      <form method="POST" enctype="multipart/form-data" class="bo-form" style="margin-bottom:1.5rem">
-        <input type="hidden" name="action" value="galerie" />
-        <div><label for="gal_images">Ajouter des images</label>
-          <input type="file" id="gal_images" name="images" accept="image/*" multiple required /></div>
-        <button type="submit" class="btn btn--sapin">Ajouter à la galerie</button>
-      </form>
-      {galerie.length > 0 && (
-        <div class="bo-grille">
-          {galerie.map((m) => (
-            <div class="bo-carte" style="padding:0;overflow:hidden">
-              <img src={urlPhoto(m.url_r2)} alt={m.texte_alt ?? ''} style="width:100%;aspect-ratio:4/3;object-fit:cover" />
-              <div style="padding:.7rem">
+          <h3 style="font-size:1.05rem;margin-bottom:.4rem">Image principale (hero)</h3>
+          {jeu.hero[0] && (
+            <div class="bo-carte" style="padding:0;overflow:hidden;max-width:420px;margin-bottom:1rem">
+              <img src={urlPhoto(jeu.hero[0].url_r2)} alt={jeu.hero[0].texte_alt ?? ''} style="width:100%;aspect-ratio:16/9;object-fit:cover" />
+              <div style="padding:.8rem">
                 <form method="POST" onsubmit="return confirm('Supprimer cette image ?')">
                   <input type="hidden" name="action" value="supprimer" />
-                  <input type="hidden" name="media_id" value={m.id} />
+                  <input type="hidden" name="media_id" value={jeu.hero[0].id} />
                   <button class="btn btn--danger btn--sm">Supprimer</button>
                 </form>
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          )}
+          <form method="POST" enctype="multipart/form-data" class="bo-form" style="margin-bottom:1.8rem">
+            <input type="hidden" name="action" value="hero" />
+            <input type="hidden" name="saison" value={jeu.suffixe} />
+            <div><label for={`hero_image${jeu.suffixe}`}>{jeu.hero[0] ? 'Remplacer l’image' : 'Choisir l’image'} (JPG, PNG, WebP — 12 Mo max)</label>
+              <input type="file" id={`hero_image${jeu.suffixe}`} name="image" accept="image/*" required /></div>
+            <div><label for={`hero_alt${jeu.suffixe}`}>Description</label>
+              <input type="text" id={`hero_alt${jeu.suffixe}`} name="alt" placeholder="Le chalet et les montagnes de Châtel" /></div>
+            <button type="submit" class="btn btn--sapin">Enregistrer l’image d’accueil</button>
+          </form>
+
+          <h3 style="font-size:1.05rem;margin-bottom:.4rem">Galerie</h3>
+          <form method="POST" enctype="multipart/form-data" class="bo-form" style="margin-bottom:1.2rem">
+            <input type="hidden" name="action" value="galerie" />
+            <input type="hidden" name="saison" value={jeu.suffixe} />
+            <div><label for={`gal_images${jeu.suffixe}`}>Ajouter des images</label>
+              <input type="file" id={`gal_images${jeu.suffixe}`} name="images" accept="image/*" multiple required /></div>
+            <button type="submit" class="btn btn--sapin">Ajouter à la galerie</button>
+          </form>
+          {jeu.galerie.length > 0 && (
+            <div class="bo-grille">
+              {jeu.galerie.map((m) => (
+                <div class="bo-carte" style="padding:0;overflow:hidden">
+                  <img src={urlPhoto(m.url_r2)} alt={m.texte_alt ?? ''} style="width:100%;aspect-ratio:4/3;object-fit:cover" />
+                  <div style="padding:.7rem">
+                    <form method="POST" onsubmit="return confirm('Supprimer cette image ?')">
+                      <input type="hidden" name="action" value="supprimer" />
+                      <input type="hidden" name="media_id" value={m.id} />
+                      <button class="btn btn--danger btn--sm">Supprimer</button>
+                    </form>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      ))}
     </>
   )}
 </Espace>

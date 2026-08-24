@@ -1,32 +1,55 @@
 ---
+import Icone from './Icone.astro';
 import { useTranslations, type Lang } from '../i18n/ui';
 const lang = (Astro.currentLocale as Lang) ?? 'fr';
 const t = useTranslations(lang);
 const annee = new Date().getFullYear();
 ---
 <footer class="pied">
+  <!-- Crete de montagne : transition douce entre le contenu et le pied de page. -->
+  <div class="pied__crete" aria-hidden="true">
+    <svg viewBox="0 0 1200 46" preserveAspectRatio="none" fill="currentColor">
+      <path d="M0 46h1200V26L1040 6l-90 14-120-20-110 26-95-14-120 20-105-16-100 18-90-12L0 30z" />
+    </svg>
+  </div>
+
   <div class="pied__inner">
     <div>
-      <h4>{t('site.nom')}</h4>
-      <p style="color:#9fb0a7;max-width:38ch;margin:.2rem 0 0">
-        Chalets et appartements à Châtel (Haute-Savoie), au cœur des Portes du Soleil.
-      </p>
+      <div class="pied__marque">
+        <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+          <path d="M6 33 17 15l6.5 10.5L28 19l14 14z" fill="#fff" opacity=".9" />
+          <path d="M24 30.5 30.5 25l6.5 5.5v7.5H24z" fill="#8fae9d" />
+        </svg>
+        {t('site.nom')}
+      </div>
+      <p style="max-width:34ch;margin:0">{t('footer.presentation')}</p>
     </div>
+
     <div>
-      <h4>{t('nav.logements')}</h4>
+      <h4>{t('footer.decouvrir')}</h4>
       <a href="/logements">{t('nav.logements')}</a>
       <a href="/station">{t('nav.station')}</a>
       <a href="/contact">{t('nav.contact')}</a>
     </div>
+
     <div>
-      <h4>Informations</h4>
+      <h4>{t('footer.infos')}</h4>
       <a href="/mentions-legales">{t('footer.mentions')}</a>
       <a href="/cgv">{t('footer.cgv')}</a>
       <a href="/confidentialite">{t('footer.confidentialite')}</a>
-      <a href="/espace">Espace propriétaire</a>
+      <a href="/espace">{t('footer.espace')}</a>
+    </div>
+
+    <div class="pied__contact">
+      <h4>{t('footer.contact')}</h4>
+      <a href="tel:+33682934601"><Icone nom="telephone" /> +33 6 82 93 46 01</a>
+      <a href="mailto:contact@chatel-appartement.com"><Icone nom="courriel" /> contact@chatel-appartement.com</a>
+      <p style="margin:.6rem 0 0;font-size:.9rem">1735 chemin du Petit-Châtel<br />74390 Châtel, Haute-Savoie</p>
     </div>
   </div>
-  <div class="pied__inner pied__bas" style="padding-top:1.2rem">
-    © {annee} {t('site.nom')} · {t('footer.proprietaire')} : Stéphane et Dominique Grillet-Aubert · Tél. +33 6 82 93 46 01
+
+  <div class="pied__inner pied__bas">
+    <span>© {annee} {t('site.nom')}</span>
+    <span>{t('footer.proprietaire')} : Stéphane et Dominique Grillet-Aubert</span>
   </div>
 </footer>
