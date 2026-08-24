@@ -1,39 +1,81 @@
 ---
 import Icone from './Icone.astro';
+import SaisonToggle from './SaisonToggle.astro';
 import { useTranslations, type Lang } from '../i18n/ui';
 const lang = (Astro.currentLocale as Lang) ?? 'fr';
 const t = useTranslations(lang);
+
+// Onglet actif : sert a marquer aria-current dans la navigation.
+const chemin = Astro.url.pathname;
+const actif = (base: string) => (base === '/' ? chemin === '/' : chemin.startsWith(base));
+
+const liens = [
+  { href: '/', libelle: t('nav.accueil') },
+  { href: '/logements', libelle: t('nav.logements') },
+  { href: '/station', libelle: t('nav.station') },
+  { href: '/contact', libelle: t('nav.contact') },
+];
 ---
-<header class="entete">
+<a href="#contenu" class="sr-only">{t('site.aller_contenu')}</a>
+
+<header class="entete" id="entete">
   <div class="entete__inner">
     <a href="/" class="marque" aria-label={t('site.nom')}>
       <svg class="marque__logo" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-        <circle cx="24" cy="24" r="23" fill="#1f4434"/>
-        <path d="M12 32 22 14l6 9 4-5 6 14z" fill="#fff"/>
-        <path d="M20 18l2-4 2 4-2 2z" fill="#bfe3f2"/>
+        <!-- Cretes de montagne + toit de chalet : la marque en une forme. -->
+        <circle cx="24" cy="24" r="23" fill="currentColor" opacity=".08" />
+        <path d="M6 33 17 15l6.5 10.5L28 19l14 14z" fill="currentColor" />
+        <path d="M15.4 19.8 17 17l1.6 2.8-1.6 1.7z" fill="#fff" opacity=".85" />
+        <path d="M24 30.5 30.5 25l6.5 5.5v7.5H24z" fill="#fff" opacity=".9" />
+        <path d="M28.6 38v-4h3.8v4" fill="currentColor" />
       </svg>
-      <span>{t('site.nom')}</span>
+      <span>
+        {t('site.nom')}
+        <span class="marque__lieu">{t('site.lieu')}</span>
+      </span>
     </a>
 
-    <button class="nav__burger" id="burger" aria-label="Menu" aria-expanded="false" aria-controls="nav">
-      <Icone nom="menu" />
-    </button>
-
     <nav class="nav" id="nav" aria-label="Navigation principale">
-      <a href="/">{t('nav.accueil')}</a>
-      <a href="/logements">{t('nav.logements')}</a>
-      <a href="/station">{t('nav.station')}</a>
-      <a href="/contact">{t('nav.contact')}</a>
+      {liens.map((l) => (
+        <a href={l.href} aria-current={actif(l.href) ? 'page' : undefined}>{l.libelle}</a>
+      ))}
       <a href="/logements" class="btn btn--primaire">{t('nav.reserver')}</a>
     </nav>
+
+    <div class="entete__actions">
+      <SaisonToggle />
+      <button class="nav__burger" id="burger" aria-label="Menu" aria-expanded="false" aria-controls="nav">
+        <Icone nom="menu" />
+      </button>
+    </div>
   </div>
 </header>
 
 <script>
+  const entete = document.getElementById('entete');
   const burger = document.getElementById('burger');
   const nav = document.getElementById('nav');
+
+  // Ombre portee des que l'on quitte le haut de page (l'en-tete reste collant).
+  const majEntete = () => entete?.classList.toggle('entete--fixe', window.scrollY > 20);
+  majEntete();
+  window.addEventListener('scroll', majEntete, { passive: true });
+
+  const fermer = () => {
+    nav?.classList.remove('nav--ouvert');
+    burger?.setAttribute('aria-expanded', 'false');
+  };
+
   burger?.addEventListener('click', () => {
     const ouvert = nav?.classList.toggle('nav--ouvert');
     burger.setAttribute('aria-expanded', String(!!ouvert));
+  });
+
+  // Fermeture du menu mobile : clic sur un lien, touche Echap, clic exterieur.
+  nav?.querySelectorAll('a').forEach((a) => a.addEventListener('click', fermer));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fermer(); });
+  document.addEventListener('click', (e) => {
+    const cible = e.target as Node;
+    if (nav?.classList.contains('nav--ouvert') && !nav.contains(cible) && !burger?.contains(cible)) fermer();
   });
 </script>

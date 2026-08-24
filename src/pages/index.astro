@@ -3,27 +3,107 @@ import Base from '../layouts/Base.astro';
 import SearchBar from '../components/SearchBar.astro';
 import LogementCard from '../components/LogementCard.astro';
 import Icone from '../components/Icone.astro';
-import { getToutesVignettes, getMediasSite } from '../lib/db';
+import Carousel from '../components/Carousel.astro';
+import Calendar from '../components/Calendar.astro';
+import SaisonToggle from '../components/SaisonToggle.astro';
+import {
+  getToutesVignettes, getMediasSite, getPrixNuitParSaison, getOccupationsPubliees,
+} from '../lib/db';
 import { urlPhoto } from '../lib/format';
 import { useTranslations, type Lang } from '../i18n/ui';
-import Carousel from '../components/Carousel.astro';
+import { SAISONS, fenetreSaison, type Saison } from '../lib/saison';
+import { contenuSaisons } from '../data/saisons';
+import type { Disponibilite } from '../lib/types';
 
 const lang = (Astro.currentLocale as Lang) ?? 'fr';
 const t = useTranslations(lang);
 
 const DB = Astro.locals.runtime.env.DB;
 const logements = await getToutesVignettes(DB);
-const [heroMedias, galerie] = await Promise.all([
+
+// Médias : un jeu par saison, avec repli sur les médias génériques déjà en
+// place (accueil_hero / accueil_galerie) tant que les photos saisonnières
+// n'ont pas été chargées depuis l'espace propriétaire.
+const [heroGen, heroHiver, heroEte, galGen, galHiver, galEte] = await Promise.all([
   getMediasSite(DB, 'accueil_hero'),
+  getMediasSite(DB, 'accueil_hero_hiver'),
+  getMediasSite(DB, 'accueil_hero_ete'),
   getMediasSite(DB, 'accueil_galerie'),
+  getMediasSite(DB, 'accueil_galerie_hiver'),
+  getMediasSite(DB, 'accueil_galerie_ete'),
 ]);
 
-// Image du hero : média d'accueil dédié > couverture d'un logement publié > placeholder.
-const heroImg = heroMedias[0]
-  ? urlPhoto(heroMedias[0].url_r2)
-  : urlPhoto(logements.find((l) => l.statut === 'publie')?.couverture);
+// Fenêtres de dates de chaque saison → tarifs applicables + mois du calendrier.
+const fenetres = { hiver: fenetreSaison('hiver'), ete: fenetreSaison('ete') };
+const [prixHiver, prixEte, occupations] = await Promise.all([
+  getPrixNuitParSaison(DB, fenetres.hiver.debut, fenetres.hiver.fin),
+  getPrixNuitParSaison(DB, fenetres.ete.debut, fenetres.ete.fin),
+  getOccupationsPubliees(DB),
+]);
+const prixParSaison = (id: number) => ({
+  hiver: prixHiver.get(id) ?? null,
+  ete: prixEte.get(id) ?? null,
+});
 
-const description = 'Location de vacances à Châtel (Portes du Soleil) : chalets et appartements de 7 à 10 personnes, à 50–500 m des pistes. Vue montagne, accueil familial.';
+const couvertureLogement = urlPhoto(logements.find((l) => l.statut === 'publie')?.couverture);
+const heroParSaison: Record<Saison, { src: string; alt: string }> = {
+  hiver: heroHiver[0]
+    ? { src: urlPhoto(heroHiver[0].url_r2), alt: heroHiver[0].texte_alt ?? contenuSaisons.hiver.imageAlt }
+    : heroGen[0]
+      ? { src: urlPhoto(heroGen[0].url_r2), alt: heroGen[0].texte_alt ?? contenuSaisons.hiver.imageAlt }
+      : { src: couvertureLogement, alt: contenuSaisons.hiver.imageAlt },
+  ete: heroEte[0]
+    ? { src: urlPhoto(heroEte[0].url_r2), alt: heroEte[0].texte_alt ?? contenuSaisons.ete.imageAlt }
+    : heroGen[0]
+      ? { src: urlPhoto(heroGen[0].url_r2), alt: heroGen[0].texte_alt ?? contenuSaisons.ete.imageAlt }
+      : { src: couvertureLogement, alt: contenuSaisons.ete.imageAlt },
+};
+
+const galerieParSaison: Record<Saison, { src: string; alt: string }[]> = {
+  hiver: (galHiver.length ? galHiver : galGen).map((m) => ({ src: urlPhoto(m.url_r2), alt: m.texte_alt ?? 'Châtel en hiver' })),
+  ete: (galEte.length ? galEte : galGen).map((m) => ({ src: urlPhoto(m.url_r2), alt: m.texte_alt ?? 'Châtel en été' })),
+};
+
+// Illustration de la section « en famille » : 1re image de galerie, sinon un salon.
+const familleImg = galGen[0] ? urlPhoto(galGen[0].url_r2) : '/images/placeholders/appart-salon.svg';
+
+// Calendrier d'ensemble : un jour n'est affiché « complet » que lorsque TOUS
+// les logements publiés sont pris. On agrège les occupations en journées.
+const nbPublies = logements.filter((l) => l.statut === 'publie').length;
+const occupesParJour = new Map<string, Set<number>>();
+for (const occ of occupations) {
+  const cur = new Date(occ.date_debut + 'T00:00:00Z');
+  const fin = new Date(occ.date_fin + 'T00:00:00Z');
+  while (cur < fin) {
+    const cle = cur.toISOString().slice(0, 10);
+    if (!occupesParJour.has(cle)) occupesParJour.set(cle, new Set());
+    occupesParJour.get(cle)!.add(occ.logement_id);
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+}
+const joursComplets: Disponibilite[] = [...occupesParJour.entries()]
+  .filter(([, ids]) => nbPublies > 0 && ids.size >= nbPublies)
+  .map(([jour], i) => {
+    const lendemain = new Date(jour + 'T00:00:00Z');
+    lendemain.setUTCDate(lendemain.getUTCDate() + 1);
+    return {
+      id: i, logement_id: 0, date_debut: jour, date_fin: lendemain.toISOString().slice(0, 10),
+      statut: 'reserve' as const, source: 'direct' as const, reference_externe: null, date_creation: '',
+    };
+  });
+
+// Vitrine : on met en avant les 6 premiers lots, la liste complète est sur /logements.
+const vitrine = logements.slice(0, 6);
+
+// Points de réassurance affichés juste sous la recherche.
+const reassurance = [
+  { icone: 'users', titre: t('home.reassurance.1.titre'), texte: t('home.reassurance.1.texte') },
+  { icone: 'ski', titre: t('home.reassurance.2.titre'), texte: t('home.reassurance.2.texte') },
+  { icone: 'car', titre: t('home.reassurance.3.titre'), texte: t('home.reassurance.3.texte') },
+  { icone: 'coeur', titre: t('home.reassurance.4.titre'), texte: t('home.reassurance.4.texte') },
+];
+
+const description = 'Location de vacances à Châtel (Portes du Soleil) : chalets et appartements de 7 à 10 personnes, à 50–500 m des pistes. Vue montagne, accueil familial. Été comme hiver.';
 
 // Donnees structurees Schema.org pour l'hebergeur (page d'accueil).
 const jsonLd = {
@@ -44,27 +124,229 @@ const jsonLd = {
 };
 ---
 <Base titre="Location de vacances à Châtel" description={description} jsonLd={jsonLd}>
-  <section class="hero">
-    <div class="hero__bg"><img src={heroImg} alt="" /></div>
-    <div class="hero__voile"></div>
-    <div class="hero__inner">
-      <span class="hero__kicker">★ Châtel · Portes du Soleil</span>
-      <h1>{t('home.hero.titre')}</h1>
-      <p>{t('home.hero.sous_titre')}</p>
-      <div style="margin-top:2rem">
+  <!-- Hero en deux volets : le texte à gauche, la photo bord à bord à droite. -->
+  <section class="hero-duo">
+    <div class="hero-duo__texte">
+      <div class="hero-duo__contenu">
+        {SAISONS.map((s) => (
+          <div data-si={s}>
+            <span class="hero-duo__kicker">
+              <Icone nom={contenuSaisons[s].icone} /> {contenuSaisons[s].kicker}
+            </span>
+            <h1>{contenuSaisons[s].titre}</h1>
+            <p class="hero-duo__accroche">{contenuSaisons[s].accroche}</p>
+          </div>
+        ))}
+
+        <div class="hero-duo__actions">
+          <a href="/logements" class="btn btn--primaire">{t('home.logements.voir_tout')} <Icone nom="fleche" /></a>
+          <a href="/station" class="btn btn--doux">{t('home.hero.cta_secondaire')}</a>
+        </div>
+
+        <!-- Chiffres clés : ils changent avec la saison. -->
+        {SAISONS.map((s) => (
+          <ul class="chiffres" data-si={s}>
+            {contenuSaisons[s].chiffres.map((c) => (
+              <li class="chiffre">
+                <span class="chiffre__icone"><Icone nom={c.icone} /></span>
+                <span>
+                  <strong>{c.valeur}</strong>
+                  <small>{c.libelle}</small>
+                </span>
+              </li>
+            ))}
+          </ul>
+        ))}
+      </div>
+    </div>
+
+    {SAISONS.map((s, i) => (
+      <div class={`hero-duo__media hero-duo__media--${s}`} data-si={s}>
+        <img
+          src={heroParSaison[s].src}
+          alt={heroParSaison[s].alt}
+          fetchpriority={i === 0 ? 'high' : undefined}
+        />
+      </div>
+    ))}
+  </section>
+
+  <!-- Recherche : carte flottante qui chevauche le bas du hero. -->
+  <div class="recherche-flottante">
+    <div class="conteneur">
+      <div class="recherche-flottante__panneau">
+        <div class="recherche-flottante__entete">
+          <p class="recherche-flottante__titre">{t('home.recherche.titre')}</p>
+          <SaisonToggle class="curseur--carte" />
+        </div>
         <SearchBar />
+      </div>
+      <p class="recherche-flottante__aide">{t('home.recherche.aide')}</p>
+    </div>
+  </div>
+
+  <!-- Offre du moment : location de ski l'hiver, Multi Pass l'été. -->
+  {SAISONS.map((s) => (
+    <div class="conteneur mention-saison-hote" data-si={s}>
+      <aside class={`mention-saison mention-saison--${s}`}>
+        <span class="mention-saison__icone"><Icone nom={contenuSaisons[s].mention.icone} /></span>
+        <div>
+          <strong>{contenuSaisons[s].mention.titre}</strong>
+          <p>{contenuSaisons[s].mention.texte}</p>
+        </div>
+      </aside>
+    </div>
+  ))}
+
+  <section class="section section--serre">
+    <div class="conteneur">
+      <div class="reassurance reveal">
+        {reassurance.map((r) => (
+          <div class="reassurance__item">
+            <span class="reassurance__icone"><Icone nom={r.icone} /></span>
+            <span><strong>{r.titre}</strong>{r.texte}</span>
+          </div>
+        ))}
       </div>
     </div>
   </section>
 
+  <section class="section section--bois">
+    <div class="conteneur">
+      <div class="titre-section">
+        <span class="surtitre">{t('home.logements.surtitre')}</span>
+        <h2>{t('home.logements.titre')}</h2>
+        <p>{t('site.baseline')}</p>
+      </div>
+      <div class="grille reveal">
+        {vitrine.map((l) => <LogementCard logement={l} prixParSaison={prixParSaison(l.id)} />)}
+      </div>
+      {logements.length > vitrine.length && (
+        <div style="text-align:center;margin-top:2.5rem">
+          <a href="/logements" class="btn btn--sapin">{t('home.logements.voir_tout')} <Icone nom="fleche" /></a>
+        </div>
+      )}
+    </div>
+  </section>
+
+  <!-- Activités : la liste bascule entièrement avec la saison. -->
   <section class="section">
     <div class="conteneur">
       <div class="titre-section">
+        <span class="surtitre">{t('home.activites.surtitre')}</span>
+        <h2>{t('home.activites.titre')}</h2>
+      </div>
+      {SAISONS.map((s) => (
+        <div class="activites reveal" data-si={s}>
+          {contenuSaisons[s].activites.map((a) => (
+            <article class={`activite activite--${s}`}>
+              <span class="activite__icone"><Icone nom={a.icone} /></span>
+              <h3>{a.titre}</h3>
+              <p>{a.texte}</p>
+            </article>
+          ))}
+        </div>
+      ))}
+      <div style="text-align:center;margin-top:2.5rem">
+        <a href="/station" class="btn btn--doux">{t('home.saisons.cta')} <Icone nom="fleche" /></a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Le chalet de famille : le ton « maison de famille », pas « agence ». -->
+  <section class="section section--bois">
+    <div class="conteneur">
+      <div class="duo reveal">
+        <div class="duo__media">
+          <img src={familleImg} alt="Le séjour d’un de nos appartements à Châtel" loading="lazy" />
+        </div>
+        <div>
+          <span class="surtitre">{t('home.famille.surtitre')}</span>
+          <h2>{t('home.famille.titre')}</h2>
+          <p>{t('home.famille.texte')}</p>
+          <ul class="puces">
+            <li><Icone nom="check" /> {t('home.famille.1')}</li>
+            <li><Icone nom="check" /> {t('home.famille.2')}</li>
+            <li><Icone nom="check" /> {t('home.famille.3')}</li>
+            <li><Icone nom="check" /> {t('home.famille.4')}</li>
+          </ul>
+          <a href="/logements" class="btn btn--primaire">{t('home.famille.cta')} <Icone nom="fleche" /></a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {(galerieParSaison.hiver.length > 0 || galerieParSaison.ete.length > 0) && (
+    <section class="section">
+      <div class="conteneur">
+        {SAISONS.map((s) => (
+          galerieParSaison[s].length > 0 && (
+            <div data-si={s}>
+              <div class="titre-section"><h2>{contenuSaisons[s].galerieTitre}</h2></div>
+              <div class="reveal" style="max-width:900px;margin:0 auto">
+                <Carousel photos={galerieParSaison[s]} />
+              </div>
+            </div>
+          )
+        ))}
+      </div>
+    </section>
+  )}
+
+  <!-- Avis : trois par saison. Vider `avis` dans src/data/saisons.ts masque la section. -->
+  {(contenuSaisons.hiver.avis.length > 0 || contenuSaisons.ete.avis.length > 0) && (
+    <section class="section section--bois">
+      <div class="conteneur">
+        <div class="titre-section">
+          <span class="surtitre">{t('home.avis.surtitre')}</span>
+          <h2>{t('home.avis.titre')}</h2>
+        </div>
+        {SAISONS.map((s) => (
+          <div class="avis reveal" data-si={s}>
+            {contenuSaisons[s].avis.map((a) => (
+              <figure class="avis__carte">
+                <div class="avis__notes" aria-label={`${a.note} sur 5`}>
+                  {Array.from({ length: a.note }, () => <Icone nom="etoile" />)}
+                </div>
+                <blockquote>{a.texte}</blockquote>
+                <figcaption>{a.auteur} · {a.periode}</figcaption>
+              </figure>
+            ))}
+          </div>
+        ))}
+      </div>
+    </section>
+  )}
+
+  <section class="section">
+    <div class="conteneur">
+      <div class="titre-section">
+        <span class="surtitre">{t('home.calendrier.surtitre')}</span>
+        <h2>{t('home.calendrier.titre')}</h2>
+        {SAISONS.map((s) => <p data-si={s}>{contenuSaisons[s].calendrierTexte}</p>)}
+      </div>
+      <div class="reveal">
+        <Calendar occupations={joursComplets} mois={4} />
+        <p class="note" style="margin-top:1rem">
+          Vue d’ensemble du chalet : une date n’apparaît complète que lorsque tous les logements
+          publiés sont pris. Les disponibilités précises sont sur chaque fiche.
+        </p>
+        <div style="text-align:center;margin-top:1.5rem">
+          <a href="/logements" class="btn btn--sapin">{t('home.calendrier.cta')} <Icone nom="fleche" /></a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--bois">
+    <div class="conteneur">
+      <div class="titre-section">
+        <span class="surtitre">{t('home.avantages.surtitre')}</span>
         <h2>{t('home.avantages.titre')}</h2>
       </div>
       <div class="avantages reveal">
         <div class="avantage">
-          <div class="avantage__icone"><Icone nom="euro" /></div>
+          <div class="avantage__icone"><Icone nom="cle" /></div>
           <h3>{t('home.avantages.1.titre')}</h3>
           <p>{t('home.avantages.1.texte')}</p>
         </div>
@@ -74,66 +356,11 @@ const jsonLd = {
           <p>{t('home.avantages.2.texte')}</p>
         </div>
         <div class="avantage">
-          <div class="avantage__icone"><Icone nom="users" /></div>
+          <div class="avantage__icone"><Icone nom="coeur" /></div>
           <h3>{t('home.avantages.3.titre')}</h3>
           <p>{t('home.avantages.3.texte')}</p>
         </div>
       </div>
     </div>
   </section>
-
-  <section class="section">
-    <div class="conteneur">
-      <div class="titre-section">
-        <h2>{t('home.saisons.titre')}</h2>
-        <p>{t('home.saisons.sous_titre')}</p>
-      </div>
-      <div class="saisons reveal">
-        <article class="saison saison--hiver">
-          <div class="saison__img"><img src="/images/saison-hiver.svg" alt="Châtel en hiver, ski aux Portes du Soleil" loading="lazy" /></div>
-          <div class="saison__corps">
-            <span class="saison__tag"><Icone nom="ski" /> {t('home.saisons.hiver.tag')}</span>
-            <h3>{t('home.saisons.hiver.titre')}</h3>
-            <p>{t('home.saisons.hiver.texte')}</p>
-            <a href="/station" class="btn btn--contour">{t('home.saisons.cta')}</a>
-          </div>
-        </article>
-        <article class="saison saison--ete">
-          <div class="saison__img"><img src="/images/saison-ete.svg" alt="Châtel en été, randonnée et alpages" loading="lazy" /></div>
-          <div class="saison__corps">
-            <span class="saison__tag"><Icone nom="mountain" /> {t('home.saisons.ete.tag')}</span>
-            <h3>{t('home.saisons.ete.titre')}</h3>
-            <p>{t('home.saisons.ete.texte')}</p>
-            <a href="/station" class="btn btn--contour">{t('home.saisons.cta')}</a>
-          </div>
-        </article>
-      </div>
-    </div>
-  </section>
-
-  <section class="section section--bois">
-    <div class="conteneur">
-      <div class="titre-section">
-        <h2>{t('home.logements.titre')}</h2>
-        <p>{t('site.baseline')}</p>
-      </div>
-      <div class="grille reveal">
-        {logements.map((l) => <LogementCard logement={l} />)}
-      </div>
-      <div style="text-align:center;margin-top:2rem">
-        <a href="/logements" class="btn btn--sapin">{t('home.logements.voir_tout')}</a>
-      </div>
-    </div>
-  </section>
-
-  {galerie.length > 0 && (
-    <section class="section">
-      <div class="conteneur">
-        <div class="titre-section"><h2>Châtel en images</h2></div>
-        <div class="reveal" style="max-width:880px;margin:0 auto">
-          <Carousel photos={galerie.map((m) => ({ src: urlPhoto(m.url_r2), alt: m.texte_alt ?? 'Châtel' }))} />
-        </div>
-      </div>
-    </section>
-  )}
 </Base>

@@ -1,30 +1,71 @@
 ---
 import Icone from './Icone.astro';
 import { useTranslations, type Lang } from '../i18n/ui';
-import { urlPhoto } from '../lib/format';
+import { urlPhoto, parseEquipements } from '../lib/format';
 import type { LogementVignette } from '../lib/types';
+import { SAISONS } from '../lib/saison';
+import { contenuSaisons, atoutSaison } from '../data/saisons';
 
-interface Props { logement: LogementVignette; }
-const { logement: l } = Astro.props;
+interface Props {
+  logement: LogementVignette;
+  /** Prix/nuit le plus bas par saison (depuis la table tarifs). */
+  prixParSaison?: Partial<Record<'hiver' | 'ete', number | null>>;
+}
+const { logement: l, prixParSaison } = Astro.props;
 const lang = (Astro.currentLocale as Lang) ?? 'fr';
 const t = useTranslations(lang);
 const brouillon = l.statut === 'brouillon';
+
+// Nom du chalet : ce qui precede le tiret cadratin dans le nom du lot
+// (ex. « L'Étrye — Appartement 3 » -> « L'Étrye »). Sert de reperage sur la photo.
+const chalet = l.nom.split('—')[0].trim();
+const href = `/logements/${l.slug}`;
+
+// Atout mis en avant : deduit des equipements reellement declares.
+const equipements = parseEquipements(l.equipements);
+const afficherPrix = !!prixParSaison;
 ---
 <article class="carte">
-  <a href={`/logements/${l.slug}`} class="carte__media" aria-label={l.nom}>
+  <div class="carte__media">
     {brouillon
       ? <span class="carte__badge carte__badge--brouillon">{t('fiche.brouillon')}</span>
       : <span class="carte__badge">{l.capacite_max} {t('liste.personnes')}</span>}
-    <img src={urlPhoto(l.couverture)} alt={l.couverture_alt ?? l.nom} loading="lazy" width="600" height="450" />
-  </a>
+    <img src={urlPhoto(l.couverture)} alt={l.couverture_alt ?? l.nom} loading="lazy" width="600" height="400" />
+    <span class="carte__lieu"><Icone nom="chalet" /> {chalet}</span>
+  </div>
+
   <div class="carte__corps">
-    <h3 class="carte__titre">{l.nom}</h3>
-    <div class="carte__meta">
-      <span><Icone nom="users" /> {l.capacite_max} {t('liste.personnes')}</span>
-      <span><Icone nom="bed" /> {l.nb_chambres} {t('liste.chambres')}</span>
-      {l.surface_m2 && <span><Icone nom="ruler" /> {l.surface_m2} m²</span>}
+    <h3 class="carte__titre"><a href={href}>{l.nom}</a></h3>
+
+    <ul class="carte__meta">
+      <li><Icone nom="users" /> {l.capacite_max} {t('liste.personnes')}</li>
+      <li><Icone nom="bed" /> {l.nb_chambres} {t('liste.chambres')}</li>
+      {l.surface_m2 && <li><Icone nom="ruler" /> {l.surface_m2} m²</li>}
+    </ul>
+
+    {/* Atout saisonnier : une seule des deux lignes est visible à la fois. */}
+    {SAISONS.map((s) => (
+      <p class={`carte__atout carte__atout--${s}`} data-si={s}>
+        <Icone nom={contenuSaisons[s].icone} /> {atoutSaison(s, equipements, l.id)}
+      </p>
+    ))}
+
+    {l.description_courte && <p class="carte__texte">{l.description_courte}</p>}
+
+    <div class="carte__pied">
+      {afficherPrix && SAISONS.map((s) => {
+        const prix = prixParSaison?.[s];
+        return (
+          <span class="carte__prix" data-si={s}>
+            {prix == null
+              ? <small>{t('liste.tarif_sur_demande')}</small>
+              : <>
+                  <small>{t('liste.a_partir_de')}</small> {prix} € <small>{t('liste.par_nuit')}</small>
+                </>}
+          </span>
+        );
+      })}
+      <span class="carte__lien">{t('liste.voir')} <Icone nom="fleche" /></span>
     </div>
-    {l.description_courte && <p style="margin:.2rem 0;color:var(--texte-doux);font-size:.95rem">{l.description_courte}</p>}
-    <a href={`/logements/${l.slug}`} class="btn btn--primaire btn--bloc" style="margin-top:auto">{t('liste.voir')}</a>
   </div>
 </article>

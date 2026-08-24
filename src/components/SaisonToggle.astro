@@ -1,0 +1,46 @@
+---
+// Curseur Hiver ⇄ Été : on le fait glisser (souris, doigt, flèches du clavier)
+// d'un bout à l'autre. Il ne recharge pas la page : il pose data-saison sur
+// <html>, et le CSS révèle la version correspondante des blocs
+// (voir « Bascule saisonnière » dans global.css).
+import Icone from './Icone.astro';
+import { saisonParDefaut } from '../lib/saison';
+import { contenuSaisons } from '../data/saisons';
+
+interface Props { class?: string }
+const { class: cls = '' } = Astro.props;
+
+// Valeur rendue côté serveur ; le script d'en-tête la remplace aussitôt par
+// le choix mémorisé du visiteur, s'il en a un.
+const actuelle = saisonParDefaut();
+const ete = actuelle === 'ete';
+---
+<div class={`curseur ${cls}`.trim()} data-curseur>
+  <button type="button" class="curseur__bout curseur__bout--hiver" data-saison-bout="hiver">
+    <Icone nom={contenuSaisons.hiver.icone} />
+    <span>{contenuSaisons.hiver.libelle}</span>
+  </button>
+
+  <div class="curseur__piste" data-piste>
+    <div
+      class="curseur__pouce"
+      data-pouce
+      role="slider"
+      tabindex="0"
+      aria-label="Saison affichée"
+      aria-valuemin="0"
+      aria-valuemax="1"
+      aria-valuenow={ete ? 1 : 0}
+      aria-valuetext={contenuSaisons[actuelle].libelle}
+    >
+      {/* L'icône du pouce suit la saison : le CSS n'en montre qu'une. */}
+      <span class="curseur__icone" data-si="hiver"><Icone nom={contenuSaisons.hiver.icone} /></span>
+      <span class="curseur__icone" data-si="ete"><Icone nom={contenuSaisons.ete.icone} /></span>
+    </div>
+  </div>
+
+  <button type="button" class="curseur__bout curseur__bout--ete" data-saison-bout="ete">
+    <Icone nom={contenuSaisons.ete.icone} />
+    <span>{contenuSaisons.ete.libelle}</span>
+  </button>
+</div>

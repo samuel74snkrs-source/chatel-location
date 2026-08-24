@@ -77,10 +77,15 @@ const jsonLd = {
       <Carousel photos={photos.map((p) => ({ src: urlPhoto(p.url_r2), alt: p.texte_alt ?? logement.nom }))} />
     )}
 
-    <div style="margin:1.6rem 0 .4rem"><h1>{logement.nom}</h1></div>
+    <div class="fiche__entete">
+      {logement.adresse && (
+        <span class="fiche__lieu"><Icone nom="map" /> {logement.adresse}</span>
+      )}
+      <h1>{logement.nom}</h1>
+    </div>
     {brouillon && <div class="alerte" style="margin-bottom:1rem">{t('fiche.brouillon')} — informations à confirmer par le propriétaire.</div>}
 
-    <div class="fiche__layout">
+    <div class="fiche__layout fiche">
       <div>
         <ul class="specs">
           <li><Icone nom="users" /> {logement.capacite_max} {t('liste.personnes')}</li>
@@ -127,14 +132,25 @@ const jsonLd = {
 
       <aside>
         <div class="encadre encadre--sticky">
-          <p style="margin:0 0 .3rem;font-family:var(--police-titre);font-size:1.2rem;color:var(--sapin)">Réserver ce logement</p>
-          <p class="note" style="margin:0 0 .8rem">Disponibilités et tarifs en temps réel lors de la réservation.</p>
-          {logement.numero_enregistrement_meuble && (
-            <p class="note">{t('fiche.numero_meuble')} : <strong>{logement.numero_enregistrement_meuble}</strong></p>
-          )}
-          <a href={`/reserver?logement=${logement.slug}`} class="btn btn--primaire btn--bloc" style="margin-top:.4rem">
-            {t('fiche.reserver')}
+          <p class="encadre__titre">Réserver ce logement</p>
+          <p class="note" style="margin:0 0 1rem">Disponibilités et tarifs en temps réel lors de la réservation.</p>
+
+          <ul class="puces" style="margin:0 0 1.2rem;font-size:.94rem">
+            <li><Icone nom="users" /> Jusqu’à {logement.capacite_max} personnes</li>
+            <li><Icone nom="bed" /> {logement.nb_chambres} chambres · {logement.nb_sdb} salle(s) d’eau</li>
+            <li><Icone nom="bouclier" /> Réservation directe auprès des propriétaires</li>
+          </ul>
+
+          <a href={`/reserver?logement=${logement.slug}`} class="btn btn--primaire btn--bloc">
+            {t('fiche.reserver')} <Icone nom="fleche" />
           </a>
+          <a href={`/contact?logement=${logement.slug}`} class="btn btn--doux btn--bloc" style="margin-top:.6rem">
+            <Icone nom="courriel" /> {t('nav.contact')}
+          </a>
+
+          {logement.numero_enregistrement_meuble && (
+            <p class="note" style="margin:1.1rem 0 0">{t('fiche.numero_meuble')} : <strong>{logement.numero_enregistrement_meuble}</strong></p>
+          )}
         </div>
       </aside>
     </div>

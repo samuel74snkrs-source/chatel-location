@@ -2,23 +2,31 @@
 import { useTranslations, type Lang } from '../i18n/ui';
 import { ui } from '../i18n/ui';
 import type { Disponibilite } from '../lib/types';
+import { SAISONS, fenetreSaison, type Saison } from '../lib/saison';
 
-interface Props { occupations: Disponibilite[]; mois?: number; }
-const { occupations, mois = 8 } = Astro.props;
+interface Props {
+  occupations: Disponibilite[];
+  /** Nombre de mois affichés par saison. */
+  mois?: number;
+}
+const { occupations, mois = 4 } = Astro.props;
 const lang = (Astro.currentLocale as Lang) ?? 'fr';
 const t = useTranslations(lang);
 const nomsMois = ui[lang]?.['cal.mois'] ?? ui.fr['cal.mois'];
 const nomsJours = ui[lang]?.['cal.jours'] ?? ui.fr['cal.jours'];
 
-// Construit un index date(YYYY-MM-DD) -> statut a partir des occupations.
+// Date locale au format YYYY-MM-DD (toISOString décalerait d'un fuseau).
+const isoJour = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+// Index date(YYYY-MM-DD) -> statut a partir des occupations.
 // date_fin est exclusive (jour de depart libre pour une nouvelle arrivee).
 const statutParJour = new Map<string, 'reserve' | 'bloque'>();
-const isoJour = (d: Date) => d.toISOString().slice(0, 10);
 for (const occ of occupations) {
   const cur = new Date(occ.date_debut + 'T00:00:00Z');
   const fin = new Date(occ.date_fin + 'T00:00:00Z');
   while (cur < fin) {
-    const cle = isoJour(cur);
+    const cle = cur.toISOString().slice(0, 10);
     // 'reserve' prime sur 'bloque' a l'affichage.
     if (occ.statut === 'reserve' || !statutParJour.has(cle)) {
       statutParJour.set(cle, occ.statut === 'reserve' ? 'reserve' : 'bloque');
@@ -27,54 +35,67 @@ for (const occ of occupations) {
   }
 }
 
-// Genere la liste des mois a afficher a partir du mois courant.
-const debut = new Date();
-const grilleMois = [];
-for (let m = 0; m < mois; m++) {
-  const annee = debut.getFullYear();
-  const moisIdx = debut.getMonth() + m;
-  const d = new Date(annee, moisIdx, 1);
-  const y = d.getFullYear();
-  const mo = d.getMonth();
-  const premierJour = new Date(y, mo, 1);
-  // Décalage lundi = 0 ... dimanche = 6
-  const offset = (premierJour.getDay() + 6) % 7;
-  const nbJours = new Date(y, mo + 1, 0).getDate();
-  const cellules: { jour: number | null; statut: string | null; passe: boolean }[] = [];
-  for (let i = 0; i < offset; i++) cellules.push({ jour: null, statut: null, passe: false });
-  const auj = isoJour(new Date());
-  for (let j = 1; j <= nbJours; j++) {
-    const cle = `${y}-${String(mo + 1).padStart(2, '0')}-${String(j).padStart(2, '0')}`;
-    cellules.push({ jour: j, statut: statutParJour.get(cle) ?? 'libre', passe: cle < auj });
+const auj = isoJour(new Date());
+
+// Construit `nb` mois consecutifs a partir d'un mois de depart.
+function grille(depart: Date, nb: number) {
+  const out = [];
+  for (let m = 0; m < nb; m++) {
+    const d = new Date(depart.getFullYear(), depart.getMonth() + m, 1);
+    const y = d.getFullYear();
+    const mo = d.getMonth();
+    // Décalage lundi = 0 ... dimanche = 6
+    const offset = (new Date(y, mo, 1).getDay() + 6) % 7;
+    const nbJours = new Date(y, mo + 1, 0).getDate();
+    const cellules: { jour: number | null; statut: string | null; passe: boolean }[] = [];
+    for (let i = 0; i < offset; i++) cellules.push({ jour: null, statut: null, passe: false });
+    for (let j = 1; j <= nbJours; j++) {
+      const cle = `${y}-${String(mo + 1).padStart(2, '0')}-${String(j).padStart(2, '0')}`;
+      cellules.push({ jour: j, statut: statutParJour.get(cle) ?? 'libre', passe: cle < auj });
+    }
+    out.push({ titre: `${nomsMois[mo]} ${y}`, cellules });
   }
-  grilleMois.push({ titre: `${nomsMois[mo]} ${y}`, cellules });
+  return out;
 }
+
+// Une grille par saison : l'hiver s'ouvre sur février, l'été sur juillet
+// (voir fenetreSaison). On s'arrete a la fin de la saison plutot que
+// d'afficher un nombre de mois fixe qui deborderait sur l'entre-saison.
+const grillesParSaison = SAISONS.map((s: Saison) => {
+  const f = fenetreSaison(s);
+  const finSaison = new Date(f.fin + 'T00:00:00');
+  const nbMois = (finSaison.getFullYear() - f.ancre.getFullYear()) * 12
+    + (finSaison.getMonth() - f.ancre.getMonth()) + 1;
+  return { saison: s, mois: grille(f.ancre, Math.max(2, Math.min(mois, nbMois))) };
+});
 ---
-<div class="cal-grille">
-  {grilleMois.map((mois) => (
-    <div class="cal-mois">
-      <p class="cal-mois__titre">{mois.titre}</p>
-      <table class="cal-table">
-        <thead>
-          <tr>{nomsJours.map((jn) => <th>{jn}</th>)}</tr>
-        </thead>
-        <tbody>
-          {Array.from({ length: Math.ceil(mois.cellules.length / 7) }, (_, semaine) => (
-            <tr>
-              {mois.cellules.slice(semaine * 7, semaine * 7 + 7).map((c) => (
-                <td>
-                  {c.jour === null
-                    ? <span class="cal-jour cal-jour--vide"></span>
-                    : <span class={`cal-jour cal-jour--${c.passe ? 'vide' : c.statut}`}>{c.jour}</span>}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  ))}
-</div>
+{grillesParSaison.map(({ saison, mois: moisSaison }) => (
+  <div class="cal-grille" data-si={saison}>
+    {moisSaison.map((m) => (
+      <div class="cal-mois">
+        <p class="cal-mois__titre">{m.titre}</p>
+        <table class="cal-table">
+          <thead>
+            <tr>{nomsJours.map((jn) => <th>{jn}</th>)}</tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: Math.ceil(m.cellules.length / 7) }, (_, semaine) => (
+              <tr>
+                {m.cellules.slice(semaine * 7, semaine * 7 + 7).map((c) => (
+                  <td>
+                    {c.jour === null
+                      ? <span class="cal-jour cal-jour--vide"></span>
+                      : <span class={`cal-jour cal-jour--${c.passe ? 'vide' : c.statut}`}>{c.jour}</span>}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    ))}
+  </div>
+))}
 <div class="legende">
   <span><i class="pastille" style="background:#eaf3ee"></i> {t('cal.libre')}</span>
   <span><i class="pastille" style="background:#f3d6d2"></i> {t('cal.reserve')}</span>

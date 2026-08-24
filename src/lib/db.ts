@@ -110,3 +110,37 @@ export async function rechercherDisponibles(
   ).bind(personnes, depart, arrivee).all<LogementVignette>();
   return results ?? [];
 }
+
+// Prix par nuit le plus bas de chaque logement sur une fenetre de dates
+// (une saison). Renvoie une Map logement_id -> prix ; un logement absent de
+// la Map n'a simplement aucun tarif saisi pour cette periode : on n'affiche
+// alors aucun prix plutot qu'une valeur devinee.
+export async function getPrixNuitParSaison(
+  DB: D1Database,
+  debut: string,
+  fin: string
+): Promise<Map<number, number>> {
+  const { results } = await DB.prepare(
+    `SELECT logement_id, MIN(prix_nuit) AS prix
+       FROM tarifs
+      WHERE prix_nuit IS NOT NULL
+        AND date_debut < ?   -- fin de la fenetre
+        AND date_fin   > ?   -- debut de la fenetre
+      GROUP BY logement_id`
+  ).bind(fin, debut).all<{ logement_id: number; prix: number }>();
+  return new Map((results ?? []).map((r) => [r.logement_id, r.prix]));
+}
+
+// Toutes les occupations (reserve/bloque) des logements publies, a partir
+// d'aujourd'hui. Sert au calendrier d'ensemble de la page d'accueil.
+export async function getOccupationsPubliees(DB: D1Database): Promise<Disponibilite[]> {
+  const { results } = await DB.prepare(
+    `SELECT d.* FROM disponibilites d
+       JOIN logements l ON l.id = d.logement_id
+      WHERE l.statut = 'publie'
+        AND d.statut IN ('reserve', 'bloque')
+        AND d.date_fin >= date('now')
+      ORDER BY d.date_debut ASC`
+  ).all<Disponibilite>();
+  return results ?? [];
+}
